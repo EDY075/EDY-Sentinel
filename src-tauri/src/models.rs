@@ -302,7 +302,9 @@ pub struct BaselineSummary {
     pub schema_version: u32,
     pub learning_period_seconds: u64,
     pub last_observed_at: Option<String>,
+    pub updated_at: Option<String>,
     pub last_processing_duration_ms: u64,
+    pub error_code: Option<String>,
     pub error_message: Option<String>,
     pub entities: BaselineEntityCounts,
 }
@@ -321,7 +323,9 @@ impl Default for BaselineSummary {
             schema_version: 1,
             learning_period_seconds: 0,
             last_observed_at: None,
+            updated_at: None,
             last_processing_duration_ms: 0,
+            error_code: None,
             error_message: None,
             entities: BaselineEntityCounts::default(),
         }
@@ -344,11 +348,45 @@ pub struct SecurityEventRecord {
     pub source: String,
     pub baseline_id: Option<String>,
     pub rule_id: Option<String>,
+    pub rule_version: Option<u32>,
     pub confidence: Option<String>,
-    pub status: String,
+    pub status: SecurityEventStatus,
     pub observation_count: u64,
     pub condition_active: bool,
     pub schema_version: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SecurityEventStatus {
+    New,
+    Seen,
+    Acknowledged,
+    Resolved,
+    Ignored,
+}
+
+impl SecurityEventStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::New => "new",
+            Self::Seen => "seen",
+            Self::Acknowledged => "acknowledged",
+            Self::Resolved => "resolved",
+            Self::Ignored => "ignored",
+        }
+    }
+
+    pub fn from_persisted(value: &str) -> Result<Self, String> {
+        match value {
+            "new" => Ok(Self::New),
+            "seen" => Ok(Self::Seen),
+            "acknowledged" => Ok(Self::Acknowledged),
+            "resolved" => Ok(Self::Resolved),
+            "ignored" => Ok(Self::Ignored),
+            _ => Err("Stored security event status is invalid".into()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -362,5 +400,5 @@ pub struct BaselineActionInput {
 #[serde(rename_all = "camelCase")]
 pub struct SecurityEventStatusInput {
     pub event_id: String,
-    pub status: String,
+    pub status: SecurityEventStatus,
 }

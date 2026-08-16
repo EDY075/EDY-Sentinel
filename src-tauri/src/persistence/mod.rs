@@ -19,12 +19,22 @@ const MIGRATIONS: &[(i64, &str)] = &[
         4,
         include_str!("../../migrations/0004_behavioral_baseline.sql"),
     ),
+    (
+        5,
+        include_str!("../../migrations/0005_sprint2_hardening.sql"),
+    ),
 ];
 
 #[derive(Clone)]
 pub struct Database {
     connection: Arc<Mutex<Connection>>,
     cadence: Arc<Mutex<PersistenceCadence>>,
+}
+
+#[derive(Debug)]
+pub(crate) struct BaselineTransactionFailure {
+    pub message: String,
+    pub persist_active_error: bool,
 }
 
 #[derive(Default)]
@@ -451,6 +461,53 @@ impl Database {
             .map_err(|_| "Unable to commit baseline transaction")?;
         Ok(value)
     }
+
+    pub(crate) fn baseline_engine_transaction<T>(
+        &self,
+        operation: impl FnOnce(&Transaction<'_>) -> Result<T, String>,
+    ) -> Result<T, BaselineTransactionFailure> {
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| BaselineTransactionFailure {
+                message: "Database unavailable".into(),
+                persist_active_error: false,
+            })?;
+        let transaction = connection
+            .transaction()
+            .map_err(|_| BaselineTransactionFailure {
+                message: "Unable to start baseline transaction".into(),
+                persist_active_error: false,
+            })?;
+        let value = operation(&transaction).map_err(|message| BaselineTransactionFailure {
+            message,
+            persist_active_error: true,
+        })?;
+        transaction
+            .commit()
+            .map_err(|_| BaselineTransactionFailure {
+                message: "Unable to commit baseline transaction".into(),
+                persist_active_error: false,
+            })?;
+        Ok(value)
+    }
+
+    pub(crate) fn mark_active_baseline_error(
+        &self,
+        error_code: &str,
+        public_message: &str,
+    ) -> Result<(), String> {
+        let connection = self.connection.lock().map_err(|_| "Database unavailable")?;
+        connection
+            .execute(
+                "UPDATE behavioral_baselines
+                 SET status = 'error', error_code = ?1, error_message = ?2, updated_at = ?3
+                 WHERE active = 1",
+                params![error_code, public_message, Utc::now().to_rfc3339()],
+            )
+            .map(|_| ())
+            .map_err(|_| "Unable to persist baseline error state".into())
+    }
 }
 
 #[derive(Debug)]
@@ -609,7 +666,7 @@ mod tests {
     #[test]
     fn migrations_are_versioned_and_theme_round_trips() {
         let database = Database::in_memory().expect("database should initialize");
-        assert_eq!(database.status().expect("status").0, 4);
+        assert_eq!(database.status().expect("status").0, 5);
         database.set_theme("terminal").expect("theme should save");
         assert_eq!(database.get_theme().expect("theme should load"), "terminal");
     }
@@ -632,7 +689,7 @@ mod tests {
                 [],
             )
             .expect("Sprint 0 migration marker");
-        Database::migrate(&mut connection).expect("Sprint 2A migrations");
+        Database::migrate(&mut connection).expect("Sprint 2 hardening migrations");
         let version: i64 = connection
             .query_row("SELECT MAX(version) FROM schema_migrations", [], |row| {
                 row.get(0)
@@ -665,16 +722,115 @@ mod tests {
                 "SELECT COUNT(*) FROM pragma_table_info('security_events') WHERE name IN (
                     'entity_key', 'title', 'first_seen_at', 'last_seen_at',
                     'baseline_context_json', 'baseline_id', 'status',
-                    'observation_count', 'condition_active', 'schema_version'
+                    'observation_count', 'condition_active', 'schema_version', 'rule_version'
                 )",
                 [],
                 |row| row.get(0),
             )
             .expect("security event foundation columns");
-        assert_eq!(version, 4);
+        let hardening_columns: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('behavioral_baselines')
+                 WHERE name IN ('error_code', 'updated_at')",
+                [],
+                |row| row.get(0),
+            )
+            .expect("hardening columns");
+        let history_table: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master
+                 WHERE type = 'table' AND name = 'security_event_history'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("history table");
+        assert_eq!(version, 5);
         assert_eq!(live_tables, 4);
         assert_eq!(baseline_tables, 7);
-        assert_eq!(event_columns, 10);
+        assert_eq!(event_columns, 11);
+        assert_eq!(hardening_columns, 2);
+        assert_eq!(history_table, 1);
+    }
+
+    #[test]
+    fn sprint_two_hardening_enforces_event_integrity_and_append_only_history() {
+        let database = Database::in_memory().expect("database should initialize");
+        let connection = database.connection.lock().expect("connection lock");
+        connection
+            .execute(
+                "INSERT INTO behavioral_baselines(
+                    baseline_id, created_at, learning_started_at, version, host_id, status,
+                    learning_period_seconds, updated_at
+                 ) VALUES ('baseline-v5', '2026-08-16T10:00:00Z', '2026-08-16T10:00:00Z',
+                           1, 'host-v5', 'ready', 86400, '2026-08-16T10:00:00Z')",
+                [],
+            )
+            .expect("baseline fixture");
+        connection
+            .execute(
+                "INSERT INTO security_events(
+                    id, event_type, occurred_at, source, payload_json, entity_type, entity_key,
+                    title, first_seen_at, last_seen_at, baseline_context_json, baseline_id,
+                    status, observation_count, condition_active, schema_version
+                 ) VALUES ('event-v5', 'process_first_seen', '2026-08-16T10:01:00Z',
+                           'processes', '{}', 'process', 'entity-v5', 'Observed process',
+                           '2026-08-16T10:01:00Z', '2026-08-16T10:01:00Z', '{}',
+                           'baseline-v5', 'new', 1, 1, 1)",
+                [],
+            )
+            .expect("event fixture");
+        assert!(connection
+            .execute(
+                "UPDATE security_events SET status = 'invented' WHERE id = 'event-v5'",
+                [],
+            )
+            .is_err());
+        assert!(connection
+            .execute(
+                "UPDATE security_events SET condition_active = 7 WHERE id = 'event-v5'",
+                [],
+            )
+            .is_err());
+        assert!(connection
+            .execute(
+                "UPDATE security_events SET first_seen_at = NULL WHERE id = 'event-v5'",
+                [],
+            )
+            .is_err());
+        assert!(connection
+            .execute(
+                "DELETE FROM behavioral_baselines WHERE baseline_id = 'baseline-v5'",
+                [],
+            )
+            .is_err());
+        connection
+            .execute(
+                "INSERT INTO security_event_history(
+                    event_id, transition, observed_at, recorded_at, source, event_type,
+                    entity_type, entity_key, baseline_id, evidence_json,
+                    baseline_context_json, event_schema_version, observation_count
+                 ) VALUES ('event-v5', 'first_observed', '2026-08-16T10:01:00Z',
+                           '2026-08-16T10:01:00Z', 'processes', 'process_first_seen',
+                           'process', 'entity-v5', 'baseline-v5', '{}', '{}', 1, 1)",
+                [],
+            )
+            .expect("history fixture");
+        assert!(connection
+            .execute(
+                "UPDATE security_event_history SET evidence_json = '{\"changed\":true}'",
+                [],
+            )
+            .is_err());
+        let foreign_key_issues: i64 = connection
+            .query_row("SELECT COUNT(*) FROM pragma_foreign_key_check", [], |row| {
+                row.get(0)
+            })
+            .expect("foreign key check");
+        let integrity: String = connection
+            .query_row("PRAGMA integrity_check", [], |row| row.get(0))
+            .expect("integrity check");
+        assert_eq!(foreign_key_issues, 0);
+        assert_eq!(integrity, "ok");
     }
 
     #[test]

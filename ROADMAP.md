@@ -30,7 +30,8 @@
 
 ## Sprint 2A — Behavioral baseline and security event foundation (complete)
 
-- Versioned, host-bound local baseline with Learning/Ready/Stale/Error lifecycle
+- Versioned, host-bound local baseline with Learning/Ready/Stale lifecycle and an Error
+  value reserved in the schema for explicit persistence hardening
 - Process, executable, parent-child, destination, service, route, gateway, DNS, and
   interface facts learned from real telemetry
 - Crash-safe learning, guarded reset/relearn, and preserved baseline history
@@ -41,11 +42,21 @@
 
 ## Recommended Sprint 2B
 
-Build a small explainable rule engine over the factual Sprint 2A event contract. Add
+Schema-v5 handoff hardening is complete before detection work: controlled persisted Error,
+actual Windows system-volume discovery without assuming `C:\`, constrained factual-event
+storage, append-only transition provenance, and cursor/entity-history APIs are in place.
+
+Then build a small explainable rule engine over the factual Sprint 2A event contract. Add
 versioned rule definitions, evidence requirements, calibrated severity, entity history,
 and investigation workflow. Do not calculate a composite Security Score until rules and
 calibration are validated. External reputation, automated response, and process/service
 control remain separate future authorization boundaries.
+
+Service PID remains live-only telemetry rather than service identity and may be attached to
+factual event evidence when available. Company metadata remains distinct from signer identity,
+executable content hashing stays on-demand or bounded/background, failed service enumeration
+never means `Stopped`, and isolated new network endpoints never justify elevated severity.
+The one-minute development baseline is not a production calibration dataset.
 
 ## Later increments
 

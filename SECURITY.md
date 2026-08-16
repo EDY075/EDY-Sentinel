@@ -28,11 +28,27 @@
 - Baseline learning and comparison remain fully local; no host, process, network, service,
   event, or identifier data leaves the device.
 - Baseline host identity is an opaque SHA-256 derivation of MachineGuid and system-volume
-  serial. Raw values and hostname are not stored in baseline metadata.
+  serial resolved from the actual Windows installation volume; no fixed drive letter is
+  assumed. Raw values and hostname are not stored in baseline metadata.
 - Executable identity uses normalized path and cached file/signature metadata. File content
-  is not continuously hashed.
+  is not continuously hashed. Any future content SHA-256 must run on demand or as bounded,
+  cached background work rather than on every refresh.
+- CompanyName remains descriptive version-resource metadata and is never substituted for
+  cryptographic signer identity.
+- Service PID remains live runtime telemetry and is not part of persistent service identity;
+  current PID may appear only as factual event evidence when available.
+- A failed Service Control Manager enumeration retains the last-good state and is reported
+  separately from a factual `Stopped` service or restricted service configuration.
+- Network destinations are dynamic. A new endpoint, unusual port, or missing process
+  correlation is not independently a threat verdict or sufficient evidence for severity.
 - Learning emits no new-behavior events. Ready comparisons create factual observations,
   never malware claims or severity labels.
+- The one-minute learning option is for controlled development/testing only, and its events
+  are not a production calibration dataset.
+- Schema-v5 hardening persists `Error` only when an already stored baseline fails in a way
+  that must survive restart. Only a stable code, sanitized message, and update timestamp are
+  stored; transient pre-baseline failures create no baseline, and stack traces or sensitive
+  details are never persisted.
 - Reset/relearn requires an exact confirmation phrase, preserves previous baseline versions,
   and does not remove telemetry/event history outside the active baseline.
 - Event workflow changes are allowlisted and parameterized. SQL identifiers used internally

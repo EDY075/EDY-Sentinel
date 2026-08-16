@@ -4,11 +4,13 @@ Date: 2026-08-16
 
 Scope: Behavioral Baseline & Security Event Foundation
 
-Base commit: `57fe6e044b423a6e683dcce739d6ae5e0e56aa0a`
+Sprint 2A base commit: `57fe6e044b423a6e683dcce739d6ae5e0e56aa0a`
 
-Final commit: the commit containing this report (`git rev-parse HEAD`)
+Sprint 2A implementation commit: `09d360fdc7bba6a2d4b9712f98f9b1574e73ca32`
 
-Commit subject: `feat: add behavioral baseline and security event foundation`
+Sprint 2A commit subject: `feat: add behavioral baseline and security event foundation`
+
+Current hardening commit: the commit containing this report (`git rev-parse HEAD`)
 
 ## Outcome
 
@@ -47,7 +49,8 @@ Persisted baseline facts:
 - process patterns: executable, parent executable, and user when available;
 - parent-child relationships;
 - process-associated remote IP, port, and protocol;
-- service name/display name, state, startup type, binary path, account, and PID context;
+- service name/display name, state, startup type, binary path, and account. PID remains
+  live runtime telemetry and may appear in factual event evidence when available;
 - primary interface identity/type/address, default route metric, gateway, and DNS set.
 
 Host identity is `host-v1-<opaque hash>`, derived from MachineGuid and the system-volume
@@ -106,11 +109,13 @@ reduced-motion behavior remain supported.
 
 ## Database
 
-- Migration ledger version: **4**
-- New migration: `src-tauri/migrations/0004_behavioral_baseline.sql`
+- Sprint 2A release ledger: **4**; verified pre-Sprint 2B hardening ledger: **5**
+- Sprint 2A migration: `src-tauri/migrations/0004_behavioral_baseline.sql`
+- Hardening migration: `src-tauri/migrations/0005_sprint2_hardening.sql`; migration 0004
+  remains unchanged.
 - Existing data is preserved; migration is additive and transactional.
 - Real database: `C:\Users\<USER>\AppData\Roaming\com.edy.sentinel\sentinel.db`
-- Final validation size after the controlled scenario: **15,790,080 bytes**
+- Sprint 2A validation size after the controlled scenario: **15,790,080 bytes**
 - `PRAGMA integrity_check`: **ok**
 - Controlled state: 3 preserved baseline versions and 526 factual events, including ambient
   host changes observed during the intentionally short development baseline.
@@ -161,7 +166,7 @@ connections 1–2 ms, and services 46–57 ms. Baseline/event processing was exp
 and observed at 3–13 ms in the integrated run (19–28 ms during initial bulk learning). No UI
 stall, overlapping hydration, uncontrolled writer loop, or material regression was observed.
 
-## Quality gates
+## Sprint 2A quality gates
 
 | Gate | Result |
 | --- | --- |
@@ -232,107 +237,299 @@ Screenshots remain outside the repository and are not tracked by Git.
   stable identity uses cached metadata and the already available signer/signature facts.
 - A 1-minute manually completed baseline is deliberately incomplete compared with the 24-hour
   production default and can create many legitimate first-seen events as the host changes.
-- Event IPC currently returns the newest 250 rows; pagination/entity history is a Sprint 2B task.
+- The compatibility IPC still returns the newest 250 rows for the existing screen. Schema v5
+  adds bounded cursor-pagination and entity-history APIs; wiring progressive loading into the
+  current Events screen remains a Sprint 2B UI task.
 - Service change coverage on the real host was not mutated; it is covered by transactional tests.
 - Stale is computed from the last successful persisted observation, not wall-clock UI polling.
 
-## HANDOFF FOR SPRINT 2B
+## SPRINT 2B VERIFIED HANDOFF
+
+This section supersedes the previous Sprint 2B handoff. The code and schema are the source
+of truth; no alias APIs were added to preserve incorrect documentation.
+
+### Verification anchor
+
+- Previous commit: `09d360fdc7bba6a2d4b9712f98f9b1574e73ca32`
+- Hardening commit: the commit containing this verified handoff (`git rev-parse HEAD`)
+- Intended subject: `fix: harden sprint 2 handoff and baseline contracts`
+- Branch: `main`
+- SQLite ledger: v5; baseline schema: v1; factual-event schema: v1; provenance schema: v1
+- Migration 0004 is immutable. Future Sprint 2B schema work starts at migration 0006.
+- This hardening does not implement a Detection Engine, operational rules, severity,
+  a numeric Security Score, external APIs, or response actions.
+
+### Hardening verification
+
+The pre-Sprint 2B hardening was validated independently from the historical Sprint 2A gates:
+
+| Gate | Hardening result |
+| --- | --- |
+| `pnpm lint` / `pnpm typecheck` | PASS |
+| `pnpm test` | PASS — 17/17 |
+| `pnpm audit --audit-level high` | PASS — no known vulnerabilities |
+| `pnpm build` | PASS — 1818 modules, JS 264.99 kB / 80.92 kB gzip, CSS 34.13 kB / 7.06 kB gzip |
+| `cargo fmt --all -- --check` | PASS |
+| `cargo check --all-targets --all-features` | PASS |
+| `cargo clippy --all-targets --all-features -- -D warnings` | PASS |
+| Rust automated tests | PASS — 46 passed, 1 manual smoke ignored in the normal suite |
+| Native Windows collector smoke | PASS — 1/1 when run explicitly |
+| `cargo audit` 0.22.2 | PASS — zero vulnerabilities; 17 documented transitive warnings |
+| Tauri release / EXE / MSI / NSIS | PASS |
+| SQLite v4→v5 preservation | PASS — 526 aggregate events and 526 origin-history rows preserved in the validation copy |
+| Real SQLite after controlled native launch | PASS — ledger v5, `integrity_check=ok`, zero FK violations |
+
+The controlled 12.11-second optimized native sample used 1.125 CPU-seconds: 9.288% on a
+one-core scale, or 0.774% of total capacity on the 12-logical-processor host. Working set was
+41.14–42.43 MB, private bytes 18.59–20.21 MB, and the process remained at 26 threads. The
+sample includes startup, migration, hydration, and active collection, so it is intentionally
+not presented as a steady-state replacement for the longer Sprint 2A comparison.
+
+Before applying v5 to the real database, the exact v4 database was copied to
+`archive/pre-sprint2b-hardening/sentinel-v4-pre-hardening.db`. The archive is ignored by Git
+and remains locally recoverable. After the controlled native launch, the real database had
+3 baseline versions, 661 aggregate factual events, 792 append-only history rows, zero null
+event timestamps, zero orphan baseline references, and no baseline in Error. The additional
+events are factual ambient host observations from the deliberately short development baseline,
+not detections or threat findings.
+
+Hardening release artifacts were generated under
+`D:\CodexBuild\EDY-Sentinel-hardening\target\release`; these build outputs remain outside the
+repository and are not part of the commit.
 
 ### Current architecture
 
-React has one `TelemetryProvider`, one non-overlapping hydration path, and typed IPC in
-`src/lib/tauri.ts`. Rust owns real collectors, `TelemetryEngine` tracking/last-good state,
-`BaselineEngine` learning/comparison, and SQLite repositories. The dependency direction is:
+`Windows collectors → TelemetryEngine tracking/last-good → persistence → BaselineEngine → factual security_events → typed Tauri IPC → TelemetryProvider → React`
 
-`Windows collectors → TelemetryEngine tracking → BaselineEngine → security_events → typed IPC → React`
+Rust owns collection, baseline state, factual comparison, provenance, queries, validation,
+and SQLite. React remains presentation-only. `TelemetryProvider` is the single frontend
+hydration owner and prevents overlapping collection. Do not move baseline/detection logic
+into React and do not add a second polling loop.
 
-Do not move baseline/detection logic into React and do not add a second frontend polling loop.
+There is no separate Repository trait or EventService. `persistence::Database` is the sole
+concrete SQLite repository. `BaselineEngine` currently owns factual-event query, upsert,
+deduplication, condition activity, reopen, workflow status, provenance transitions, and
+retention. Future detection ownership must be a separate Rust service/module rather than
+being placed in React or silently merged into factual observations.
 
-### Git and schema
+### Schema and migrations
 
-- Base: `57fe6e044b423a6e683dcce739d6ae5e0e56aa0a`
-- Final: commit containing this report (`git rev-parse HEAD`)
-- Subject: `feat: add behavioral baseline and security event foundation`
-- Branch: `main`
-- SQLite migration ledger: v4
-- Baseline model schema: v1
-- Security event schema: v1
+- `src-tauri/migrations/0004_behavioral_baseline.sql`: released Sprint 2A baseline/event
+  foundation; never edit it.
+- `src-tauri/migrations/0005_sprint2_hardening.sql`: adds baseline `error_code`/`updated_at`,
+  rebuilds `security_events` safely, and creates append-only `security_event_history`.
+- `security_events.first_seen_at` and `last_seen_at` are now `NOT NULL` after backfill.
+- Event status, activity, observation count, schema version, and optional rule version have
+  SQLite constraints aligned with the Rust domain.
+- `security_events.baseline_id` uses a non-cascading `ON DELETE RESTRICT` foreign key. Baseline
+  history cannot be deleted while factual evidence refers to it.
+- The low-selectivity `condition_active` field has no isolated index. A partial active-cycle
+  index supports the real lifecycle query, while a retention index supports actual cleanup.
+- `security_event_history` stores only meaningful transitions: first observation,
+  reactivation, inactivity, and workflow status change. Continuous refreshes update the
+  aggregate event without appending history rows.
+- History rows are append-only. Event retention may cascade to its provenance only when the
+  aggregate event itself is legitimately removed; baseline deletion never cascades events.
 
-### Main files
+### ACTUAL SPRINT 2B INTERFACES
 
-- `src-tauri/src/baseline.rs` — engine, identities, learning, comparison, event lifecycle/tests
-- `src-tauri/src/telemetry.rs` — real telemetry tracking and Sprint 1 factual events
-- `src-tauri/src/commands.rs` — Tauri boundary and baseline/event commands
-- `src-tauri/src/models.rs` — Rust DTO contracts
-- `src-tauri/src/persistence/mod.rs` — migration runner and transaction boundary
-- `src-tauri/migrations/0004_behavioral_baseline.sql` — schema v4
-- `src/types/baseline.ts` — frontend baseline/event contracts
-- `src/features/telemetry/TelemetryProvider.tsx` — single frontend store/hydration owner
-- `src/features/baseline/*` — Overview baseline UI and guarded actions
-- `src/features/events/*` — event table/filter/detail drawer
-- `src/lib/tauri.ts` — typed IPC wrapper
-- `docs/adr/0006-behavioral-baseline-and-factual-events.md` — decisions and boundaries
+#### Rust modules
 
-### Important Rust interfaces
+- `src-tauri/src/baseline.rs` — `BaselineEngine`, persisted lifecycle, factual comparison,
+  event aggregation, provenance transitions, status workflow, and retention.
+- `src-tauri/src/telemetry.rs` — `TelemetryEngine::collect`, last-good tracking, and Sprint 1
+  factual telemetry transitions.
+- `src-tauri/src/collectors/{system,network,processes,connections,services}.rs` — Windows facts.
+- `src-tauri/src/event_query.rs` — bounded cursor pagination and entity-history queries.
+- `src-tauri/src/host_identity.rs` — real Windows system-volume discovery and opaque host ID.
+- `src-tauri/src/rules.rs` — versioned `RuleDefinition` contract only; no evaluator/registry.
+- `src-tauri/src/commands.rs` — narrow typed Tauri boundary.
+- `src-tauri/src/models.rs` — Rust DTOs and closed status enums.
+- `src-tauri/src/persistence/mod.rs` — concrete SQLite repository, migration runner, transaction
+  boundaries, and controlled persisted Error marker.
+- `src-tauri/src/lib.rs` — managed `Database`, `TelemetryEngine`, and `BaselineEngine` wiring.
 
-- `BaselineEngine::summary(&Database) -> Result<BaselineSummary, String>`
-- `BaselineEngine::observe_live(&Database, &LiveTelemetrySnapshot)`
-- `BaselineEngine::observe_network(&Database, &SystemOverview)`
-- `BaselineEngine::security_events(&Database) -> Result<Vec<SecurityEventRecord>, String>`
+#### Rust structs and enums
+
+- Baseline/event DTOs: `BaselineStatus`, `BaselineEntityCounts`, `BaselineSummary`,
+  `SecurityEventStatus`, `SecurityEventRecord`, `BaselineActionInput`,
+  `SecurityEventStatusInput`.
+- Query DTOs: `SecurityEventCursor`, `SecurityEventQueryInput`, `SecurityEventPage`,
+  `SecurityEventHistoryCursor`, `SecurityEventHistoryInput`,
+  `SecurityEventHistoryRecord`, `SecurityEventHistoryPage`.
+- Rule contract: `RuleDefinition`, `RuleCondition`, `RuleOperator`, `EvidenceRequirement`,
+  and `RulePolicy`.
+- Live DTOs remain `LiveTelemetrySnapshot`, `ProcessRecord`, `ConnectionRecord`,
+  `ServiceRecord`, `TelemetryEvent`, `CollectorHealth`, and `CollectorStatus`.
+
+#### Public/application Rust functions
+
+- `TelemetryEngine::collect(&self) -> Result<LiveTelemetrySnapshot, String>`
+- `BaselineEngine::summary(&self, &Database) -> Result<BaselineSummary, String>`
+- `BaselineEngine::security_events(&self, &Database) -> Result<Vec<SecurityEventRecord>, String>`
+- `BaselineEngine::observe_live(&self, &Database, &LiveTelemetrySnapshot) -> Result<(), String>`
+- `BaselineEngine::observe_network(&self, &Database, &SystemOverview) -> Result<(), String>`
 - `BaselineEngine::{start_new_baseline, reset_baseline, complete_learning}`
 - `BaselineEngine::set_event_status`
-- Tauri commands: `get_baseline_summary`, `get_security_events`, `start_new_baseline`,
-  `reset_baseline`, `complete_baseline_learning`, `set_security_event_status`
+- `event_query::{query_security_events, query_security_event_history}`
+- `rules::RuleDefinition::validate`
+- Repository boundary: `Database::{open, save_snapshot, persist_live_telemetry, get_theme,
+  set_theme, status, baseline_read, baseline_transaction, baseline_engine_transaction,
+  mark_active_baseline_error}`.
 
-### Important TypeScript interfaces
+#### Tauri commands
 
-- `BaselineSummary`, `BaselineEntityCounts`, `BaselineState`, `BaselineAction`
-- `SecurityEvent`, `SecurityEventStatus`
-- `TelemetryContextValue.baseline`, `.securityEvents`, `.refreshSecurityFoundation`,
-  `.runBaselineAction`, and `.updateSecurityEventStatus`
+- Collection/state: `get_system_overview`, `get_live_telemetry`, `get_database_status`,
+  `get_theme`, `set_theme`, `get_capabilities`.
+- Baseline: `get_baseline_summary`, `start_new_baseline`, `reset_baseline`,
+  `complete_baseline_learning`.
+- Events: `get_security_events` (compatibility newest-250 view),
+  `get_security_events_page`, `get_security_event_history`, `set_security_event_status`.
 
-### Decisions that must remain explicit
+#### TypeScript context, hook, and actions
+
+`src/features/telemetry/TelemetryProvider.tsx` exports `TelemetryProvider`, `useTelemetry`,
+and `telemetryIntervals`. Its real `TelemetryContextValue` contains:
+
+- state: `live`, `loading`, `refreshing`, `overview`, `database`, `snapshot`, `error`,
+  `health`, `baseline`, `securityEvents`, `securityError`;
+- actions: `setLive`, `refresh`, `refreshSecurity`, `startBaseline`, `resetBaseline`,
+  `completeBaseline`, `setEventStatus`.
+
+`refreshSecurityFoundation` does not exist. `runBaselineAction` is a private `App.tsx`
+dispatcher, not a context method. `updateSecurityEventStatus` is an IPC wrapper; the context
+action is `setEventStatus`.
+
+#### TypeScript IPC wrappers and types
+
+- `src/lib/tauri.ts`: `getBaselineSummary`, `getSecurityEvents`, `getSecurityEventsPage`,
+  `getSecurityEventHistory`, `startNewBaseline`, `resetBaseline`,
+  `completeBaselineLearning`, `updateSecurityEventStatus`, plus system/theme wrappers.
+- `src/types/baseline.ts`: baseline/event workflow, cursor page, entity history, transition,
+  and action contracts.
+- `src/types/rules.ts`: `RuleDefinition`, conditions, evidence requirements, policies, and
+  operators. These types do not execute a rule.
+- `src/types/telemetry.ts` and `src/types/system.ts`: live telemetry/system contracts.
+
+#### Pages, drawers, and real UI actions
+
+- `src/App.tsx` owns page routing and action composition.
+- `src/features/overview/Overview.tsx`: Overview plus the
+  `src/features/baseline/BaselinePanel.tsx` summary/actions.
+- `src/features/processes/ProcessesView.tsx`: Processes page and inline process detail drawer.
+- `src/features/connections/ConnectionsView.tsx`: Network page and inline connection drawer.
+- `src/features/services/ServicesView.tsx`: Services page; there is no service detail drawer.
+- `src/features/events/SecurityEventsView.tsx`: Events page and inline factual event drawer.
+- `src/features/baseline/BaselineActionDialog.tsx`: guarded start, reset/relearn, and complete
+  learning actions.
+- `src/features/events/SecurityEventsView.tsx`: mark Seen on first open, Acknowledge, Resolve,
+  and Ignore actions.
+- The existing Events screen still consumes the compatibility newest-250 wrapper. Cursor APIs
+  are ready for progressive UI loading without changing 250 to an arbitrary larger cap.
+
+### Hardening decisions
+
+#### Service PID semantics
+
+`baseline_services` intentionally has no PID column. PID is runtime telemetry in
+`ServiceRecord`/`service_observations`, changes across executions, and is not persistent
+service identity. Current PID may appear in factual event evidence when Windows provides it.
+
+#### Persisted Error semantics
+
+`Error` is terminal for one baseline version. After an already persisted baseline is loaded,
+a durable state-processing failure rolls back its operation and is marked in a second,
+controlled write with an allowlisted code, fixed sanitized message, and UTC `updated_at`.
+Reset/relearn creates a new version and preserves the Error version. Validation mistakes,
+missing baselines, partial/restricted collectors, throttling, UI errors, and transaction
+start/commit failures return normally and do not create or poison a baseline. Stack traces,
+SQL, paths, evidence payloads, raw identifiers, and personal data are never persisted in the
+Error message.
+
+#### Host identity
+
+The code uses `GetSystemWindowsDirectoryW → GetVolumePathNameW → GetVolumeInformationW` and
+does not assume `C:\`. The existing v1 hash remains byte-for-byte stable when MachineGuid and
+the system-volume serial are available. Partial-signal IDs are domain-separated; an existing
+opaque persisted host ID is reused during transient signal loss. Hostname is never a fallback,
+and raw MachineGuid/serial values are not stored.
+
+#### Company, signer, and SHA-256
+
+CompanyName is descriptive file metadata, never cryptographic signer identity. Signature
+state and signer remain separate facts. Executable content SHA-256 stays outside the live
+loop; future enrichment must be on demand or bounded/cached background work, never hundreds
+of hashes per refresh.
+
+### Event query and provenance contract
+
+Event pagination is keyset/cursor based on `(last_seen_at DESC, id DESC)`, defaults to 50,
+and is capped at 100. Bound filters support status, event type, entity type/key, baseline,
+and RFC3339 period. Entity history uses `(observed_at DESC, history_id DESC)` and supports
+event type, baseline, and period filters. SQL fragments are internal/allowlisted; all values
+are bound parameters.
+
+Factual provenance retains collector, baseline, timestamp, event/entity identity, evidence,
+baseline context, optional future rule ID/version, event schema, transition, and observation
+count. Sprint 2B must create detections separately and must never overwrite factual history.
+
+### Versioned RuleDefinition contract
+
+The Rust and TypeScript contracts include `rule_id`, version, name, description, category,
+enabled state, conditions, required evidence, versioned severity/confidence policies, and
+remediation guidance. Validation requires nonzero rule/policy versions and explicit evidence.
+No registry, evaluator, operational rule, detection, or severity assignment exists yet.
+Any future detection must store both `rule_id` and `rule_version` so historical results remain
+explainable after rule changes.
+
+### Future detection policy
 
 - Observation is not Detection; Detection is not Threat.
 - Learning creates facts and never novelty events.
 - No prior comparable fact means seed the baseline, not emit a change.
-- Event IDs are stable per baseline/type/entity; refreshes update one row.
-- Reopen uses the same ID; ignored stays ignored.
-- Confidence means factual correlation confidence only.
-- Baseline history is versioned and preserved.
-- Internal timestamps are UTC; UI formatting is local time.
-- Command lines are never persisted.
-- Security Score stays pending until evidence-calibrated rules exist.
+- Severity cannot come from novelty alone. `executable_first_seen`, unsigned/unknown metadata,
+  new destinations/ports/services, or restricted metadata cannot individually produce
+  High/Critical. A rule must require explicit corroborating facts.
+- Confidence measures evidence availability and correlation quality. It is not malware
+  probability unless a future calibrated model explicitly defines it that way.
+- Failed service enumeration is unavailable/error, not `Stopped`. Protected/restricted
+  metadata absence is not proof of maliciousness.
+- Network destinations are dynamic. An isolated endpoint or unresolved/kernel association
+  cannot receive elevated severity without corroborating evidence.
+- Security Score remains nonnumeric until coverage, calibrated rules, known denominators,
+  category impact, explanations, and anti-misleading safeguards are validated.
 
-### Exact Sprint 2B next steps
+### Development/test baseline warning
 
-1. Add migration v5; never edit migration 0004 after release.
-2. Define a small versioned `RuleDefinition` contract with ID, name, description, category,
-   conditions, evidence requirements, severity, confidence semantics, remediation guidance,
-   enabled state, and version.
-3. Implement at most a small explainable rule set over existing factual events; require
-   multiple corroborating facts where severity is assigned.
-4. Keep raw observation events distinct from rule detections in storage and UI.
-5. Add paginated event/entity-history queries instead of increasing the current 250-row cap.
-6. Add calibration fixtures, false-positive regression tests, rule-version tests, and clear
-   evidence provenance before exposing any severity.
-7. Add a detection detail section only after a rule fires; preserve the factual drawer.
-8. Design Security Score only after rule coverage/calibration is measurable. Do not infer a
-   score from baseline novelty alone.
-9. Repeat native smoke, performance comparison, SQLite integrity/retention checks, all four
-   themes, security audits, release packaging, and real screenshots.
+The active one-minute baseline and approximately 526 factual events are a controlled
+development/test configuration. They are not a production baseline and must never be used as
+a production calibration or false-positive dataset. The production default remains 24 hours.
 
-### Risks for Sprint 2B
+### Known risks
 
-- Short baselines create legitimate novelty volume; never calibrate rules from the 1-minute
-  development scenario.
-- Network endpoints are dynamic and can be kernel-associated or temporarily uncorrelated.
-- Company metadata is not signer identity; signature availability can be restricted.
-- Protected processes/services can omit metadata; absence is not proof of maliciousness.
-- A missing service enumeration result is not automatically `Stopped`.
-- Transitive Tauri/GTK/unicode RustSec maintenance warnings remain dependency-upgrade work;
-  they are not a reason to bypass audit output.
-- A numeric score without coverage denominators, rule calibration, and explanations would be
-  misleading and remains prohibited.
+- Short baselines generate legitimate novelty volume.
+- Dynamic network endpoints and PID correlation can be temporarily unresolved.
+- Signer data may be unavailable; CompanyName cannot substitute for it.
+- Protected process/service metadata may be restricted without indicating a threat.
+- Transitive Tauri/GTK/unicode RustSec maintenance warnings remain dependency-upgrade work.
+- The compatibility Events screen still shows only its newest 250 rows until the prepared
+  cursor API is connected to progressive loading.
+- Provenance before migration v5 can only be backfilled from the final v4 aggregate evidence;
+  overwritten earlier evidence cannot be reconstructed retroactively.
 
-Sprint 2B was not started in this delivery.
+### Exact Sprint 2B TODOs
+
+1. Keep migrations 0004 and 0005 immutable; begin new schema changes at 0006.
+2. Implement a small Rust Detection Engine over factual events/history; do not place logic in React.
+3. Create only a small, explainable, versioned rule set with corroborating evidence and
+   calibration fixtures; keep detections separate from factual observations.
+4. Persist `rule_id` and `rule_version` on future detections and retain evidence provenance.
+5. Connect cursor pagination/entity history to progressive Events/investigation UI loading.
+6. Add false-positive regression, rule-version, provenance, and evidence-coverage tests before
+   exposing operational severity.
+7. Add a detection detail section only after a rule fires; preserve the factual event drawer.
+8. Keep Security Score pending until rule coverage/calibration and denominators are measurable.
+9. Repeat native smoke, performance comparison, SQLite integrity/retention/FK checks, all four
+   themes, security audits, packaging, and real screenshots for any relevant UI change.
+
+Sprint 2B detection work was not started by this hardening delivery.

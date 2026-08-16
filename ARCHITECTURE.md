@@ -18,7 +18,8 @@ Rust domain models
 
 ## Frontend responsibilities
 
-- `src/app`: future provider and shell composition boundary
+- `src/App.tsx`: application shell, navigation, and UI action composition
+- `src/main.tsx`: React root and the single `TelemetryProvider` mount
 - `src/features/overview`: real snapshot presentation and formatting
 - `src/features/telemetry`: the single live-store and collection health boundary
 - `src/features/processes`: virtualized process table and process detail drawer
@@ -64,6 +65,9 @@ Collectors do not know about React. The persistence layer does not accept SQL fr
   start/open events.
 - A failed network protocol family retains its last-good baseline and never creates
   a mass of false close events.
+- A failed Service Control Manager enumeration retains the last-good service state;
+  collection failure, restricted configuration, and a factual `Stopped` state remain
+  distinct conditions.
 - Process CPU is unavailable during sampler warm-up rather than fabricated as zero.
 - Displayed process CPU is normalized by total logical-processor capacity; the raw
   aggregate is retained only as an explicitly named core-equivalent diagnostic.
@@ -74,6 +78,8 @@ Collectors do not know about React. The persistence layer does not accept SQL fr
 - Connection closure requires two consecutive successful misses, while failed
   protocol families preserve their last-good baseline.
 - Company version metadata, trust status, and certificate signer are separate facts.
+- Remote destinations are dynamic observations. A new endpoint or an unresolved process
+  association is not, by itself, evidence of a threat or a basis for elevated severity.
 - UDP remote endpoints and TCP state remain unavailable because those concepts do
   not apply to an unconnected UDP binding.
 - A total orchestration failure becomes an error state.
@@ -81,7 +87,7 @@ Collectors do not know about React. The persistence layer does not accept SQL fr
 
 ## Persistence
 
-SQLite opens from Tauri's `app_data_dir`. Startup enables foreign keys, WAL, and a busy timeout, then applies each migration transactionally. `schema_migrations` is the single version ledger. Current schema version: 4.
+SQLite opens from Tauri's `app_data_dir`. Startup enables foreign keys, WAL, and a busy timeout, then applies each migration transactionally. `schema_migrations` is the single version ledger. Current schema version: 5.
 
 Tables prepared in Sprint 0: `system_snapshots`, `network_snapshots`, `devices`, `alerts`, `security_events`, `settings`, and `integrations`. Integration secrets are not stored in the database; only a future `secret_ref` may be stored.
 
@@ -90,6 +96,11 @@ Sprint 1 adds `process_observations`, `connection_observations`,
 persisted. Live entity heartbeats are batched at approximately 60 seconds, while
 factual events are written promptly. Full Sprint 0 system/network snapshots are
 limited to one write per five minutes.
+
+Service PID is runtime telemetry stored in `service_observations`; it is deliberately
+not part of persistent service identity in `baseline_services`. A factual event may
+include the current PID as evidence when Windows provides it, without using that PID as
+the baseline key.
 
 Sprint 1.1 migration 0003 separates executable company/signature/signer facts,
 persists connection association state and recent process timestamps, and versions
@@ -100,6 +111,12 @@ existing `security_events` foundation with entity identity, evidence, baseline c
 workflow state, deduplication counts, activity, and schema version. Baseline lifecycle and
 fact writes are transactional. Previous baseline versions remain stored and inactive.
 
+Pre-Sprint 2B hardening migration 0005 makes factual-event timestamps and workflow values
+schema-enforced, adds a non-cascading baseline reference, persists controlled baseline Error
+metadata, and introduces append-only provenance for meaningful event transitions. It also
+adds bounded cursor-pagination/entity-history query support. Continuous refreshes do not
+append provenance rows, preserving the existing cadence and storage profile.
+
 ## Behavioral baseline and security events
 
 The BaselineEngine runs after factual tracking. Live facts are sampled for baseline work no
@@ -109,13 +126,25 @@ Ready comparisons process keys and deltas against the immutable active baseline.
 
 Baseline states are `Not initialized`, `Learning`, `Ready`, `Stale`, and `Error`. Learning
 state survives crashes because timestamps, counts, and facts are persisted in the same
-transaction. Host identity is an opaque SHA-256 derivation of MachineGuid and system-volume
-serial; raw values and hostname are not stored in baseline metadata.
+transaction. The schema-v5 hardening boundary reserves persisted `Error` for a failure of
+an already stored baseline whose state must survive restart; it records a stable error code,
+a sanitized message, and an update timestamp. Transient failures before a baseline exists
+return normally and do not create a false baseline. Stack traces and sensitive details are
+not persisted.
+
+Host identity is an opaque SHA-256 derivation of MachineGuid and the dynamically resolved
+Windows system-volume serial; no drive letter is assumed. Raw identifiers and hostname are
+not stored in baseline metadata. Executable Company metadata remains separate from verified
+signer identity. Executable content SHA-256 is outside the live loop and, if introduced,
+must be computed on demand or by bounded background work with caching.
 
 Factual security events have no severity. Their stable key is baseline + event type +
 entity key. Repeated observations update one event. A resolved inactive condition reopens
 under the same ID when it reappears; ignored events stay ignored. Security Score remains
 pending until a future evidence-calibrated detection engine exists.
+
+The one-minute learning period is a controlled development/test configuration. Events
+created from that deliberately short baseline are not a production calibration dataset.
 
 Initial retention is seven days for inactive observations and full snapshots, and
 30 days for factual telemetry events. Cleanup runs at startup and then at most once

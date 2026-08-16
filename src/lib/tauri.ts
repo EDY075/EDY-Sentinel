@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import type { DatabaseStatus, SystemOverview, ThemeName } from '../types/system'
 import type { LiveTelemetrySnapshot } from '../types/telemetry'
-import type { BaselineAction, BaselineSummary, SecurityEvent, SecurityEventStatus } from '../types/baseline'
+import type { BaselineAction, BaselineSummary, SecurityEvent, SecurityEventHistoryPage, SecurityEventHistoryQuery, SecurityEventPage, SecurityEventQuery, SecurityEventStatus } from '../types/baseline'
 
 export const isTauri = () => '__TAURI_INTERNALS__' in window
 
@@ -46,6 +46,16 @@ export async function getBaselineSummary(): Promise<BaselineSummary> {
 export async function getSecurityEvents(): Promise<SecurityEvent[]> {
   if (!isTauri()) throw new Error('Security events are available only inside the EDY Sentinel desktop app.')
   return invoke<SecurityEvent[]>('get_security_events')
+}
+
+export async function getSecurityEventsPage(input: SecurityEventQuery = {}): Promise<SecurityEventPage> {
+  if (!isTauri()) throw new Error('Security events are available only inside the EDY Sentinel desktop app.')
+  return invoke<SecurityEventPage>('get_security_events_page', { input })
+}
+
+export async function getSecurityEventHistory(input: SecurityEventHistoryQuery): Promise<SecurityEventHistoryPage> {
+  if (!isTauri()) throw new Error('Security event history is available only inside the EDY Sentinel desktop app.')
+  return invoke<SecurityEventHistoryPage>('get_security_event_history', { input })
 }
 
 export async function startNewBaseline(input: BaselineAction): Promise<BaselineSummary> {

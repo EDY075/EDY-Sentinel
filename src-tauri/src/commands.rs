@@ -1,6 +1,10 @@
 use crate::{
     baseline::BaselineEngine,
     collectors,
+    event_query::{
+        query_security_event_history, query_security_events, SecurityEventHistoryInput,
+        SecurityEventHistoryPage, SecurityEventPage, SecurityEventQueryInput,
+    },
     models::{
         BaselineActionInput, BaselineSummary, Capability, CollectionIssue, DatabaseStatus,
         LiveTelemetrySnapshot, SecurityEventRecord, SecurityEventStatusInput, SystemOverview,
@@ -102,6 +106,22 @@ pub fn get_security_events(
     database: State<'_, Database>,
 ) -> Result<Vec<SecurityEventRecord>, String> {
     baseline.security_events(&database)
+}
+
+#[tauri::command]
+pub fn get_security_events_page(
+    input: SecurityEventQueryInput,
+    database: State<'_, Database>,
+) -> Result<SecurityEventPage, String> {
+    query_security_events(&database, input)
+}
+
+#[tauri::command]
+pub fn get_security_event_history(
+    input: SecurityEventHistoryInput,
+    database: State<'_, Database>,
+) -> Result<SecurityEventHistoryPage, String> {
+    query_security_event_history(&database, input)
 }
 
 #[tauri::command]

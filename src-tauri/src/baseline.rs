@@ -1,8 +1,9 @@
 use crate::{
+    host_identity::current_host_identity,
     models::{
         BaselineActionInput, BaselineEntityCounts, BaselineStatus, BaselineSummary,
         ConnectionRecord, LiveTelemetrySnapshot, NetworkInfo, ProcessRecord, SecurityEventRecord,
-        SecurityEventStatusInput, ServiceRecord, SystemOverview,
+        SecurityEventStatus, SecurityEventStatusInput, ServiceRecord, SystemOverview,
     },
     persistence::Database,
 };
@@ -12,13 +13,9 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
     collections::{HashMap, HashSet},
-    ffi::OsStr,
-    os::windows::ffi::OsStrExt,
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
-use windows_sys::Win32::Storage::FileSystem::GetVolumeInformationW;
-use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
 
 const BASELINE_SCHEMA_VERSION: u32 = 1;
 const EVENT_SCHEMA_VERSION: u32 = 1;
@@ -55,6 +52,8 @@ struct BaselineRow {
     schema_version: u32,
     learning_period_seconds: u64,
     last_observed_at: Option<String>,
+    updated_at: Option<String>,
+    error_code: Option<String>,
     error_message: Option<String>,
 }
 
@@ -83,6 +82,23 @@ struct StoredNetwork {
     route_metric: Option<u32>,
 }
 
+struct EventHistorySnapshot {
+    event_id: String,
+    event_type: String,
+    entity_type: String,
+    entity_key: String,
+    source: String,
+    baseline_id: Option<String>,
+    rule_id: Option<String>,
+    rule_version: Option<u32>,
+    evidence_json: String,
+    baseline_context_json: String,
+    status: String,
+    observation_count: u64,
+    condition_active: bool,
+    schema_version: u32,
+}
+
 impl BaselineEngine {
     pub fn summary(&self, database: &Database) -> Result<BaselineSummary, String> {
         let mut summary = database.baseline_read(|connection| {
@@ -106,7 +122,8 @@ impl BaselineEngine {
                     "SELECT id, event_type, entity_type, entity_key, title, occurred_at,
                             COALESCE(first_seen_at, occurred_at), COALESCE(last_seen_at, occurred_at),
                             payload_json, baseline_context_json, source, baseline_id, rule_id,
-                            confidence, status, observation_count, condition_active, schema_version
+                            rule_version, confidence, status, observation_count, condition_active,
+                            schema_version
                      FROM security_events
                      ORDER BY COALESCE(last_seen_at, occurred_at) DESC
                      LIMIT 250",
@@ -131,11 +148,22 @@ impl BaselineEngine {
                         source: row.get(10)?,
                         baseline_id: row.get(11)?,
                         rule_id: row.get(12)?,
-                        confidence: row.get(13)?,
-                        status: row.get(14)?,
-                        observation_count: row.get(15)?,
-                        condition_active: row.get::<_, i64>(16)? != 0,
-                        schema_version: row.get(17)?,
+                        rule_version: row.get(13)?,
+                        confidence: row.get(14)?,
+                        status: SecurityEventStatus::from_persisted(&row.get::<_, String>(15)?)
+                            .map_err(|message| {
+                                rusqlite::Error::FromSqlConversionFailure(
+                                    15,
+                                    rusqlite::types::Type::Text,
+                                    Box::new(std::io::Error::new(
+                                        std::io::ErrorKind::InvalidData,
+                                        message,
+                                    )),
+                                )
+                            })?,
+                        observation_count: row.get(16)?,
+                        condition_active: row.get::<_, i64>(17)? != 0,
+                        schema_version: row.get(18)?,
                     })
                 })
                 .map_err(|_| "Unable to query security events")?;
@@ -174,6 +202,15 @@ impl BaselineEngine {
         if input.confirmation != "COMPLETE BASELINE" {
             return Err("Type COMPLETE BASELINE to confirm".into());
         }
+        if let Some(row) = database.baseline_read(load_active_baseline)? {
+            if let Err(message) = validate_persisted_baseline(&row) {
+                let _ = database.mark_active_baseline_error(
+                    "BASELINE_COMPLETION_STATE_INVALID",
+                    "The persisted baseline could not be completed safely.",
+                );
+                return Err(message);
+            }
+        }
         database.baseline_transaction(|transaction| {
             let row = load_active_baseline(transaction)?
                 .ok_or_else(|| "No baseline is currently learning".to_string())?;
@@ -187,7 +224,8 @@ impl BaselineEngine {
             transaction
                 .execute(
                     "UPDATE behavioral_baselines
-                     SET status = 'ready', learning_completed_at = ?1, last_observed_at = ?1
+                     SET status = 'ready', learning_completed_at = ?1, last_observed_at = ?1,
+                         updated_at = ?1, error_code = NULL, error_message = NULL
                      WHERE baseline_id = ?2 AND active = 1",
                     params![completed_at, row.baseline_id],
                 )
@@ -203,22 +241,32 @@ impl BaselineEngine {
         database: &Database,
         input: SecurityEventStatusInput,
     ) -> Result<(), String> {
-        if !matches!(
-            input.status.as_str(),
-            "new" | "seen" | "acknowledged" | "resolved" | "ignored"
-        ) {
-            return Err("Unsupported security event status".into());
-        }
-        database.baseline_read(|connection| {
+        let status = input.status.as_str();
+        database.baseline_transaction(|connection| {
+            let previous = load_event_history_snapshot(connection, &input.event_id)?
+                .ok_or_else(|| "Security event was not found".to_string())?;
+            if previous.status == status {
+                return Ok(());
+            }
             let changed = connection
                 .execute(
                     "UPDATE security_events SET status = ?1 WHERE id = ?2",
-                    params![input.status, input.event_id],
+                    params![status, input.event_id],
                 )
                 .map_err(|_| "Unable to update security event status")?;
             if changed == 0 {
                 return Err("Security event was not found".into());
             }
+            let current = load_event_history_snapshot(connection, &input.event_id)?
+                .ok_or_else(|| "Updated security event was not found".to_string())?;
+            append_event_history(
+                connection,
+                &current,
+                "status_changed",
+                &Utc::now().to_rfc3339(),
+                Some(&previous.status),
+                Some(status),
+            )?;
             Ok(())
         })
     }
@@ -243,10 +291,11 @@ impl BaselineEngine {
         }
         let processing_started = Instant::now();
         let now = Utc::now().to_rfc3339();
-        let result = database.baseline_transaction(|transaction| {
+        let result = database.baseline_engine_transaction(|transaction| {
             let Some(row) = load_active_baseline(transaction)? else {
                 return Ok(());
             };
+            validate_persisted_baseline(&row)?;
             match row.status {
                 BaselineStatus::Learning => learn_live(transaction, &row, snapshot, &now)?,
                 BaselineStatus::Ready | BaselineStatus::Stale => {
@@ -263,7 +312,12 @@ impl BaselineEngine {
             .lock()
             .map_err(|_| "Baseline engine unavailable")?
             .last_processing_duration_ms = processing_started.elapsed().as_millis() as u64;
-        result
+        finish_engine_operation(
+            database,
+            result,
+            "BASELINE_LIVE_STATE_INVALID",
+            "The persisted live baseline state could not be processed safely.",
+        )
     }
 
     pub fn observe_network(
@@ -286,10 +340,11 @@ impl BaselineEngine {
         }
         let processing_started = Instant::now();
         let now = Utc::now().to_rfc3339();
-        let result = database.baseline_transaction(|transaction| {
+        let result = database.baseline_engine_transaction(|transaction| {
             let Some(row) = load_active_baseline(transaction)? else {
                 return Ok(());
             };
+            validate_persisted_baseline(&row)?;
             match row.status {
                 BaselineStatus::Learning => {
                     learn_network(transaction, &row, &overview.network, &now)?
@@ -307,7 +362,12 @@ impl BaselineEngine {
             .lock()
             .map_err(|_| "Baseline engine unavailable")?
             .last_processing_duration_ms = processing_started.elapsed().as_millis() as u64;
-        result
+        finish_engine_operation(
+            database,
+            result,
+            "BASELINE_NETWORK_STATE_INVALID",
+            "The persisted network baseline state could not be processed safely.",
+        )
     }
 
     fn begin_learning(
@@ -319,7 +379,7 @@ impl BaselineEngine {
         if !ALLOWED_LEARNING_PERIODS.contains(&learning_period) {
             return Err("Unsupported learning period".into());
         }
-        let host_id = current_host_id()?;
+        let host_id = resolve_host_id(database)?;
         let now = Utc::now().to_rfc3339();
         let summary = database.baseline_transaction(|transaction| {
             let next_version: u32 = transaction
@@ -335,16 +395,16 @@ impl BaselineEngine {
             );
             transaction
                 .execute(
-                    "UPDATE behavioral_baselines SET active = 0 WHERE active = 1",
-                    [],
+                    "UPDATE behavioral_baselines SET active = 0, updated_at = ?1 WHERE active = 1",
+                    [&now],
                 )
                 .map_err(|_| "Unable to preserve previous baseline")?;
             transaction
                 .execute(
                     "INSERT INTO behavioral_baselines(
                         baseline_id, created_at, learning_started_at, version, host_id, status,
-                        observation_count, schema_version, learning_period_seconds, active
-                     ) VALUES (?1, ?2, ?2, ?3, ?4, 'learning', 0, ?5, ?6, 1)",
+                        observation_count, schema_version, learning_period_seconds, active, updated_at
+                     ) VALUES (?1, ?2, ?2, ?3, ?4, 'learning', 0, ?5, ?6, 1, ?2)",
                     params![
                         baseline_id,
                         now,
@@ -369,12 +429,53 @@ impl BaselineEngine {
     }
 }
 
+fn finish_engine_operation<T>(
+    database: &Database,
+    result: Result<T, crate::persistence::BaselineTransactionFailure>,
+    error_code: &'static str,
+    public_message: &'static str,
+) -> Result<T, String> {
+    match result {
+        Ok(value) => Ok(value),
+        Err(failure) => {
+            if failure.persist_active_error {
+                let _ = database.mark_active_baseline_error(error_code, public_message);
+            }
+            Err(failure.message)
+        }
+    }
+}
+
+fn resolve_host_id(database: &Database) -> Result<String, String> {
+    let previous = database.baseline_read(|connection| {
+        connection
+            .query_row(
+                "SELECT host_id FROM behavioral_baselines ORDER BY created_at DESC LIMIT 1",
+                [],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|_| "Unable to read persisted host identity".into())
+    })?;
+    match current_host_identity() {
+        Ok(identity)
+            if identity.signals.machine_guid_available
+                && identity.signals.system_volume_serial_available =>
+        {
+            Ok(identity.host_id)
+        }
+        Ok(identity) => Ok(previous.unwrap_or(identity.host_id)),
+        Err(message) => previous.ok_or(message),
+    }
+}
+
 fn load_active_baseline(connection: &rusqlite::Connection) -> Result<Option<BaselineRow>, String> {
     connection
         .query_row(
             "SELECT baseline_id, created_at, learning_started_at, learning_completed_at,
                     version, host_id, status, observation_count, schema_version,
-                    learning_period_seconds, last_observed_at, error_message
+                    learning_period_seconds, last_observed_at, updated_at, error_code,
+                    error_message
              FROM behavioral_baselines WHERE active = 1 ORDER BY version DESC LIMIT 1",
             [],
             |row| {
@@ -391,7 +492,9 @@ fn load_active_baseline(connection: &rusqlite::Connection) -> Result<Option<Base
                     schema_version: row.get(8)?,
                     learning_period_seconds: row.get(9)?,
                     last_observed_at: row.get(10)?,
-                    error_message: row.get(11)?,
+                    updated_at: row.get(11)?,
+                    error_code: row.get(12)?,
+                    error_message: row.get(13)?,
                 })
             },
         )
@@ -441,10 +544,26 @@ fn summary_from_row(
         schema_version: row.schema_version,
         learning_period_seconds: row.learning_period_seconds,
         last_observed_at: row.last_observed_at,
+        updated_at: row.updated_at,
         last_processing_duration_ms: 0,
+        error_code: row.error_code,
         error_message: row.error_message,
         entities,
     })
+}
+
+fn validate_persisted_baseline(row: &BaselineRow) -> Result<(), String> {
+    if row.schema_version != BASELINE_SCHEMA_VERSION {
+        return Err("Persisted baseline schema is unsupported".into());
+    }
+    if row.baseline_id.trim().is_empty()
+        || row.host_id.trim().is_empty()
+        || parse_utc(&row.created_at).is_none()
+        || parse_utc(&row.learning_started_at).is_none()
+    {
+        return Err("Persisted baseline state is invalid".into());
+    }
+    Ok(())
 }
 
 fn learn_live(
@@ -841,6 +960,7 @@ fn detect_live(
             "service_account_changed",
         ],
         &seen_events,
+        now,
     )
 }
 
@@ -963,6 +1083,7 @@ fn detect_network(
         baseline,
         &["primary_route_changed", "gateway_changed", "dns_changed"],
         &seen,
+        now,
     )
 }
 
@@ -1204,6 +1325,12 @@ fn upsert_event(
     let evidence = serde_json::to_string(&evidence).map_err(|_| "Unable to serialize evidence")?;
     let baseline_context = serde_json::to_string(&baseline_context)
         .map_err(|_| "Unable to serialize baseline context")?;
+    let previous = load_event_history_snapshot(transaction, &event_id)?;
+    let history_transition = match previous.as_ref() {
+        None => Some("first_observed"),
+        Some(event) if !event.condition_active => Some("reactivated"),
+        Some(_) => None,
+    };
     transaction
         .execute(
             "INSERT INTO security_events(
@@ -1241,7 +1368,94 @@ fn upsert_event(
             ],
         )
         .map_err(|_| "Unable to persist factual security event")?;
+    if let Some(transition) = history_transition {
+        let current = load_event_history_snapshot(transaction, &event_id)?
+            .ok_or_else(|| "Persisted security event is unavailable".to_string())?;
+        append_event_history(
+            transaction,
+            &current,
+            transition,
+            now,
+            previous.as_ref().map(|event| event.status.as_str()),
+            Some(&current.status),
+        )?;
+    }
     Ok(event_id)
+}
+
+fn load_event_history_snapshot(
+    connection: &rusqlite::Connection,
+    event_id: &str,
+) -> Result<Option<EventHistorySnapshot>, String> {
+    connection
+        .query_row(
+            "SELECT id, event_type, entity_type, entity_key, source, baseline_id, rule_id,
+                    rule_version, payload_json, baseline_context_json, status,
+                    observation_count, condition_active, schema_version
+             FROM security_events WHERE id = ?1",
+            [event_id],
+            |row| {
+                Ok(EventHistorySnapshot {
+                    event_id: row.get(0)?,
+                    event_type: row.get(1)?,
+                    entity_type: row.get(2)?,
+                    entity_key: row.get(3)?,
+                    source: row.get(4)?,
+                    baseline_id: row.get(5)?,
+                    rule_id: row.get(6)?,
+                    rule_version: row.get(7)?,
+                    evidence_json: row.get(8)?,
+                    baseline_context_json: row.get(9)?,
+                    status: row.get(10)?,
+                    observation_count: row.get(11)?,
+                    condition_active: row.get::<_, i64>(12)? != 0,
+                    schema_version: row.get(13)?,
+                })
+            },
+        )
+        .optional()
+        .map_err(|_| "Unable to read security event provenance".into())
+}
+
+fn append_event_history(
+    connection: &rusqlite::Connection,
+    event: &EventHistorySnapshot,
+    transition: &str,
+    observed_at: &str,
+    previous_status: Option<&str>,
+    new_status: Option<&str>,
+) -> Result<(), String> {
+    connection
+        .execute(
+            "INSERT INTO security_event_history(
+                event_id, transition, observed_at, recorded_at, source, event_type,
+                entity_type, entity_key, baseline_id, rule_id, rule_version, evidence_json,
+                baseline_context_json, previous_status, new_status, event_schema_version,
+                history_schema_version, observation_count
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13,
+                       ?14, ?15, ?16, 1, ?17)",
+            params![
+                event.event_id,
+                transition,
+                observed_at,
+                Utc::now().to_rfc3339(),
+                event.source,
+                event.event_type,
+                event.entity_type,
+                event.entity_key,
+                event.baseline_id,
+                event.rule_id,
+                event.rule_version,
+                event.evidence_json,
+                event.baseline_context_json,
+                previous_status,
+                new_status,
+                event.schema_version,
+                event.observation_count
+            ],
+        )
+        .map(|_| ())
+        .map_err(|_| "Unable to append security event provenance".into())
 }
 
 fn finish_event_cycle(
@@ -1249,6 +1463,7 @@ fn finish_event_cycle(
     baseline: &BaselineRow,
     categories: &[&str],
     seen: &HashSet<String>,
+    now: &str,
 ) -> Result<(), String> {
     let mut statement = transaction
         .prepare("SELECT id, event_type FROM security_events WHERE baseline_id = ?1 AND condition_active = 1")
@@ -1263,12 +1478,24 @@ fn finish_event_cycle(
     drop(statement);
     for (event_id, event_type) in rows {
         if categories.contains(&event_type.as_str()) && !seen.contains(&event_id) {
+            let previous = load_event_history_snapshot(transaction, &event_id)?
+                .ok_or_else(|| "Active security event is unavailable".to_string())?;
             transaction
                 .execute(
                     "UPDATE security_events SET condition_active = 0 WHERE id = ?1",
                     [&event_id],
                 )
                 .map_err(|_| "Unable to update event activity")?;
+            let inactive = load_event_history_snapshot(transaction, &event_id)?
+                .ok_or_else(|| "Inactive security event is unavailable".to_string())?;
+            append_event_history(
+                transaction,
+                &inactive,
+                "inactive",
+                now,
+                Some(&previous.status),
+                Some(&inactive.status),
+            )?;
         }
     }
     Ok(())
@@ -1283,9 +1510,11 @@ fn update_observation(
         .execute(
             "UPDATE behavioral_baselines
              SET observation_count = observation_count + 1,
-                 last_observed_at = ?1,
-                 status = CASE WHEN status = 'stale' THEN 'ready' ELSE status END,
-                 error_message = NULL
+                  last_observed_at = ?1,
+                  updated_at = ?1,
+                  status = CASE WHEN status = 'stale' THEN 'ready' ELSE status END,
+                  error_code = NULL,
+                  error_message = NULL
              WHERE baseline_id = ?2 AND active = 1",
             params![now, baseline.baseline_id],
         )
@@ -1315,7 +1544,8 @@ fn complete_if_due(
     transaction
         .execute(
             "UPDATE behavioral_baselines
-             SET status = 'ready', learning_completed_at = ?1
+             SET status = 'ready', learning_completed_at = ?1, updated_at = ?1,
+                 error_code = NULL, error_message = NULL
              WHERE baseline_id = ?2 AND active = 1 AND observation_count > 0",
             params![now, baseline.baseline_id],
         )
@@ -1354,6 +1584,7 @@ fn service_evidence(service: &ServiceRecord, now: &str) -> Value {
         "startupType": service.startup_type,
         "binaryPath": service.binary_path,
         "account": service.account,
+        "runtimePid": service.pid,
         "firstObserved": now
     })
 }
@@ -1384,62 +1615,17 @@ fn stable_hash(value: &str) -> String {
     format!("{:x}", digest.finalize())
 }
 
-fn derive_host_id(machine_guid: &str, volume_serial: u32) -> String {
-    format!(
-        "host-v1-{}",
-        &stable_hash(&format!(
-            "edy-sentinel-host-v1|{}|{volume_serial:08x}",
-            machine_guid.trim().to_lowercase()
-        ))[..32]
-    )
-}
-
-fn current_host_id() -> Result<String, String> {
-    let machine_guid: String = RegKey::predef(HKEY_LOCAL_MACHINE)
-        .open_subkey("SOFTWARE\\Microsoft\\Cryptography")
-        .and_then(|key| key.get_value("MachineGuid"))
-        .map_err(|_| "Windows machine identity is unavailable")?;
-    let volume_serial = system_volume_serial()?;
-    Ok(derive_host_id(&machine_guid, volume_serial))
-}
-
-fn system_volume_serial() -> Result<u32, String> {
-    let root = wide(OsStr::new("C:\\"));
-    let mut serial = 0u32;
-    let success = unsafe {
-        GetVolumeInformationW(
-            root.as_ptr(),
-            std::ptr::null_mut(),
-            0,
-            &mut serial,
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-            0,
-        )
-    };
-    if success == 0 {
-        Err("Windows system volume identity is unavailable".into())
-    } else {
-        Ok(serial)
-    }
-}
-
-fn wide(value: &OsStr) -> Vec<u16> {
-    value.encode_wide().chain(std::iter::once(0)).collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::{
-        derive_host_id, detect_network, load_active_baseline, normalize_windows_path,
-        process_pattern_key, relationship_key, stable_hash, status_from_db, BaselineEngine,
+        detect_network, load_active_baseline, normalize_windows_path, process_pattern_key,
+        relationship_key, stable_hash, status_from_db, BaselineEngine,
     };
     use crate::{
         models::{
             BaselineActionInput, BaselineStatus, CollectionIssue, CollectorHealth, CollectorStatus,
             ConnectionRecord, LiveTelemetrySnapshot, NetworkInfo, ProcessRecord,
-            SecurityEventStatusInput, ServiceRecord,
+            SecurityEventStatus, SecurityEventStatusInput, ServiceRecord,
         },
         persistence::Database,
     };
@@ -1565,15 +1751,6 @@ mod tests {
     }
 
     #[test]
-    fn host_identity_is_stable_and_does_not_embed_source_identifiers() {
-        let first = derive_host_id("machine-guid-value", 0x1234_abcd);
-        let second = derive_host_id("machine-guid-value", 0x1234_abcd);
-        assert_eq!(first, second);
-        assert!(!first.contains("machine-guid-value"));
-        assert!(!first.contains("1234"));
-    }
-
-    #[test]
     fn executable_paths_are_normalized_for_windows_identity() {
         assert_eq!(
             normalize_windows_path(" C:/Program Files/App/APP.EXE "),
@@ -1604,6 +1781,79 @@ mod tests {
         assert_eq!(status_from_db("ready"), BaselineStatus::Ready);
         assert_eq!(status_from_db("unexpected"), BaselineStatus::Error);
         assert_eq!(stable_hash("fact").len(), 64);
+    }
+
+    #[test]
+    fn durable_persisted_failure_marks_error_and_reset_preserves_history() {
+        let database = Database::in_memory().expect("database");
+        let engine = BaselineEngine::default();
+        start(&engine, &database);
+        database
+            .baseline_read(|connection| {
+                connection
+                    .execute(
+                        "UPDATE behavioral_baselines SET schema_version = 999 WHERE active = 1",
+                        [],
+                    )
+                    .map(|_| ())
+                    .map_err(|_| "Unable to seed invalid baseline state".into())
+            })
+            .expect("seed invalid state");
+
+        let failure = engine
+            .observe_live(&database, &snapshot(false, false))
+            .expect_err("unsupported persisted schema must fail");
+        assert_eq!(failure, "Persisted baseline schema is unsupported");
+        let persisted: (String, String, String, String) = database
+            .baseline_read(|connection| {
+                connection
+                    .query_row(
+                        "SELECT status, error_code, error_message, updated_at
+                         FROM behavioral_baselines WHERE active = 1",
+                        [],
+                        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+                    )
+                    .map_err(|_| "Unable to verify persisted error state".into())
+            })
+            .expect("persisted error state");
+        assert_eq!(persisted.0, "error");
+        assert_eq!(persisted.1, "BASELINE_LIVE_STATE_INVALID");
+        assert_eq!(
+            persisted.2,
+            "The persisted live baseline state could not be processed safely."
+        );
+        assert!(DateTime::parse_from_rfc3339(&persisted.3).is_ok());
+        assert!(!persisted.2.contains("999"));
+
+        engine
+            .reset_baseline(
+                &database,
+                BaselineActionInput {
+                    confirmation: "RESET BASELINE".into(),
+                    learning_period_seconds: Some(60),
+                },
+            )
+            .expect("explicit relearn recovers with a new version");
+        let versions: Vec<(u32, String, bool)> = database
+            .baseline_read(|connection| {
+                let mut statement = connection
+                    .prepare(
+                        "SELECT version, status, active FROM behavioral_baselines ORDER BY version",
+                    )
+                    .map_err(|_| "Unable to prepare baseline history query")?;
+                let rows = statement
+                    .query_map([], |row| {
+                        Ok((row.get(0)?, row.get(1)?, row.get::<_, i64>(2)? != 0))
+                    })
+                    .map_err(|_| "Unable to query baseline history")?;
+                rows.collect::<Result<Vec<_>, _>>()
+                    .map_err(|_| "Unable to read baseline history".into())
+            })
+            .expect("baseline history");
+        assert_eq!(
+            versions,
+            vec![(1, "error".into(), false), (2, "learning".into(), true)]
+        );
     }
 
     #[test]
@@ -1727,13 +1977,25 @@ mod tests {
             .find(|event| event.event_id == executable.event_id)
             .expect("same event");
         assert_eq!(same.observation_count, 2);
+        let continuous_history_count: u32 = database
+            .baseline_read(|connection| {
+                connection
+                    .query_row(
+                        "SELECT COUNT(*) FROM security_event_history WHERE event_id = ?1",
+                        [&executable.event_id],
+                        |row| row.get(0),
+                    )
+                    .map_err(|_| "Unable to count continuous event history".into())
+            })
+            .expect("continuous event history");
+        assert_eq!(continuous_history_count, 1);
 
         engine
             .set_event_status(
                 &database,
                 SecurityEventStatusInput {
                     event_id: executable.event_id.clone(),
-                    status: "resolved".into(),
+                    status: SecurityEventStatus::Resolved,
                 },
             )
             .expect("resolve");
@@ -1749,11 +2011,35 @@ mod tests {
             .into_iter()
             .find(|event| event.event_id == executable.event_id)
             .expect("reopened event");
-        assert_eq!(reopened.status, "new");
+        assert_eq!(reopened.status, SecurityEventStatus::New);
         assert!(reopened.observation_count >= 3);
         assert!(
             DateTime::parse_from_rfc3339(&reopened.last_seen).expect("last timestamp")
                 >= DateTime::parse_from_rfc3339(&reopened.first_seen).expect("first timestamp")
+        );
+        let transitions: Vec<String> = database
+            .baseline_read(|connection| {
+                let mut statement = connection
+                    .prepare(
+                        "SELECT transition FROM security_event_history
+                         WHERE event_id = ?1 ORDER BY history_id",
+                    )
+                    .map_err(|_| "Unable to prepare provenance query")?;
+                let rows = statement
+                    .query_map([&executable.event_id], |row| row.get(0))
+                    .map_err(|_| "Unable to query provenance")?;
+                rows.collect::<Result<Vec<_>, _>>()
+                    .map_err(|_| "Unable to read provenance".into())
+            })
+            .expect("event provenance");
+        assert_eq!(
+            transitions,
+            vec![
+                "first_observed",
+                "status_changed",
+                "inactive",
+                "reactivated"
+            ]
         );
     }
 

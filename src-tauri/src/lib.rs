@@ -2,8 +2,13 @@
 mod baseline;
 mod collectors;
 mod commands;
+#[cfg(windows)]
+mod event_query;
+#[cfg(windows)]
+mod host_identity;
 mod models;
 mod persistence;
+pub mod rules;
 #[cfg(windows)]
 mod telemetry;
 
@@ -32,6 +37,8 @@ pub fn run() {
             commands::get_live_telemetry,
             commands::get_baseline_summary,
             commands::get_security_events,
+            commands::get_security_events_page,
+            commands::get_security_event_history,
             commands::start_new_baseline,
             commands::reset_baseline,
             commands::complete_baseline_learning,

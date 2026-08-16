@@ -2,6 +2,28 @@
 
 All notable changes follow Keep a Changelog principles.
 
+## [Unreleased] — pre-Sprint 2B hardening
+
+### Added
+
+- SQLite schema v5 constraints, non-cascading baseline references, bounded cursor pagination,
+  entity history, and append-only factual-event transition provenance
+- Versioned Rust/TypeScript `RuleDefinition` contract without an evaluator or operational rules
+- Controlled persisted baseline Error metadata with sanitized messages and explicit recovery
+
+### Fixed
+
+- Host identity now resolves the actual Windows installation volume instead of assuming `C:\`
+- Sprint 2B handoff now lists the real Rust, TypeScript, IPC, context, page, drawer, and action APIs
+- Service PID is documented and implemented as runtime evidence rather than persistent identity
+
+### Security
+
+- Factual evidence history cannot be overwritten, baseline references cannot cascade-delete
+  events, and event status/activity values are constrained at both Rust and SQLite boundaries
+- No Detection Engine, operational severity, numeric Security Score, external API, or response
+  action was introduced
+
 ## [0.3.0] — 2026-08-16
 
 ### Added
@@ -68,7 +90,8 @@ All notable changes follow Keep a Changelog principles.
 - Native TCP/UDP IPv4/IPv6 connection telemetry with owner-PID correlation
 - Read-only Service Control Manager telemetry for service state and startup settings
 - Central live telemetry, pause/resume, collector health, factual diffs, and tracking
-- Virtualized process/connection/service tables, keyboard navigation, and detail drawers
+- Virtualized process/connection/service tables and keyboard navigation, with process and
+  connection detail drawers
 - SQLite schema v2 with normalized observations, event persistence, and retention
 - Focused Vitest and Rust tests for filters, sorting, health, parsing, correlation, diffs,
   migrations, and persistence

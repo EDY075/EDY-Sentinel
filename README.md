@@ -19,14 +19,14 @@ No security score, alert, or operational metric is simulated. A missing collecto
   signature verification, and certificate signer when available
 - Real TCP/UDP IPv4/IPv6 bindings and connections with PID-reuse-safe association,
   recent-process correlation, and explicit unresolved/system states
-- Real read-only Windows service state, startup configuration, account, binary, and PID
+- Real read-only Windows service state, startup configuration, account, binary, and live PID
 - Live pause/resume, versioned factual change events, deduplicated tracking, collector
   execution health, and separately reported data coverage
 - Local Learning/Ready behavioral baselines for executables, process relationships,
   destinations, services, routes, gateways, DNS, and interface identity
 - Evidence-backed Security Events with no fabricated severity or threat classification
-- Virtualized process/connection/service tables with search, filters, sorting, keyboard
-  navigation, and detail drawers
+- Virtualized process/connection/service tables with search, filters, sorting, and keyboard
+  navigation; process and connection views include detail drawers
 - Local SQLite snapshots, normalized observations, retention, and settings migrations
 - Sentinel Blue, Cyber Green, Terminal, and Spectrum themes
 - Compact/expanded navigation, command palette, toast, loading, empty, partial, and error states
@@ -62,6 +62,21 @@ The database is stored under the operating system application-data directory as 
 Telemetry and behavioral baselines never leave the device in Sprint 2A. The application has no API keys,
 analytics, cloud integration, scanner, or artificial intelligence module. Process
 command lines are shown only when Windows exposes them and are not persisted.
+
+Service PID is live runtime telemetry and is not part of persistent service identity in the
+behavioral baseline. CompanyName is descriptive executable metadata, not cryptographic
+signer identity. Executable content hashing is not performed in the live refresh loop; any
+future SHA-256 enrichment must be on demand or bounded, cached background work.
+
+## Accuracy boundaries
+
+A Service Control Manager enumeration failure is reported as unavailable and retains the
+last-good service state; it is not interpreted as `Stopped`. Network destinations are highly
+dynamic, and a new endpoint or an unresolved process association is not by itself a threat
+or a reason for elevated severity.
+
+The one-minute baseline option is only for controlled development/testing. Events produced
+from that short baseline are not suitable for production rule calibration.
 
 ## Scope boundary
 
