@@ -1,16 +1,24 @@
 use crate::{
     baseline::BaselineEngine,
     collectors,
+    detection::DetectionEngine,
+    detection_query::{
+        query_detection_evidence, query_detections, DetectionEvidenceInput, DetectionEvidencePage,
+        DetectionPage, DetectionQueryInput,
+    },
     event_query::{
         query_security_event_history, query_security_events, SecurityEventHistoryInput,
         SecurityEventHistoryPage, SecurityEventPage, SecurityEventQueryInput,
     },
     models::{
-        BaselineActionInput, BaselineSummary, Capability, CollectionIssue, DatabaseStatus,
-        LiveTelemetrySnapshot, SecurityEventRecord, SecurityEventStatusInput, SystemOverview,
-        ThemeInput,
+        BaselineActionInput, BaselineSummary, Capability, CollectionIssue, CollectorHealth,
+        CollectorStatus, DatabaseStatus, DetectionStatusInput, LiveTelemetrySnapshot,
+        RuleEnabledInput, ScoreCoverage, SecurityEventRecord, SecurityEventStatusInput,
+        SecurityScore, SystemOverview, ThemeInput,
     },
     persistence::Database,
+    rules::{self, RuleDefinition},
+    score::ScoreEngine,
     telemetry::TelemetryEngine,
 };
 use tauri::State;
@@ -21,6 +29,8 @@ const THEMES: [&str; 4] = ["sentinel-blue", "cyber-green", "terminal", "spectrum
 pub async fn get_system_overview(
     database: State<'_, Database>,
     baseline: State<'_, BaselineEngine>,
+    detection: State<'_, DetectionEngine>,
+    score: State<'_, ScoreEngine>,
 ) -> Result<SystemOverview, String> {
     let mut overview = tauri::async_runtime::spawn_blocking(collectors::collect_overview)
         .await
@@ -37,6 +47,14 @@ pub async fn get_system_overview(
             message,
         });
     }
+    let coverage = vec![collector_coverage(&overview.collector)];
+    refresh_security_analysis(
+        &database,
+        &detection,
+        &score,
+        coverage,
+        &mut overview.issues,
+    );
     Ok(overview)
 }
 
@@ -68,10 +86,14 @@ pub async fn get_live_telemetry(
     engine: State<'_, TelemetryEngine>,
     database: State<'_, Database>,
     baseline: State<'_, BaselineEngine>,
+    detection: State<'_, DetectionEngine>,
+    score: State<'_, ScoreEngine>,
 ) -> Result<LiveTelemetrySnapshot, String> {
     let engine = engine.inner().clone();
     let database = database.inner().clone();
     let baseline = baseline.inner().clone();
+    let detection = detection.inner().clone();
+    let score = score.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
         let mut snapshot = engine.collect()?;
         if database.persist_live_telemetry(&mut snapshot).is_err() {
@@ -86,6 +108,14 @@ pub async fn get_live_telemetry(
                 message,
             });
         }
+        let coverage = snapshot.collectors.iter().map(collector_coverage).collect();
+        refresh_security_analysis(
+            &database,
+            &detection,
+            &score,
+            coverage,
+            &mut snapshot.issues,
+        );
         Ok(snapshot)
     })
     .await
@@ -161,6 +191,122 @@ pub fn set_security_event_status(
 }
 
 #[tauri::command]
+pub fn get_detections_page(
+    input: DetectionQueryInput,
+    database: State<'_, Database>,
+) -> Result<DetectionPage, String> {
+    query_detections(&database, input)
+}
+
+#[tauri::command]
+pub fn get_detection_evidence(
+    input: DetectionEvidenceInput,
+    database: State<'_, Database>,
+) -> Result<DetectionEvidencePage, String> {
+    query_detection_evidence(&database, input)
+}
+
+#[tauri::command]
+pub fn set_detection_status(
+    input: DetectionStatusInput,
+    detection: State<'_, DetectionEngine>,
+    score: State<'_, ScoreEngine>,
+    database: State<'_, Database>,
+) -> Result<(), String> {
+    detection.set_detection_status(&database, input)?;
+    score.calculate_and_persist(&database, Vec::new())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_detection_rules(
+    detection: State<'_, DetectionEngine>,
+    database: State<'_, Database>,
+) -> Result<Vec<RuleDefinition>, String> {
+    detection.rule_definitions(&database)
+}
+
+#[tauri::command]
+pub fn set_detection_rule_enabled(
+    input: RuleEnabledInput,
+    detection: State<'_, DetectionEngine>,
+    score: State<'_, ScoreEngine>,
+    database: State<'_, Database>,
+) -> Result<(), String> {
+    detection.set_rule_enabled(&database, &input.rule_id, input.enabled)?;
+    score.calculate_and_persist(&database, Vec::new())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_security_score(
+    score: State<'_, ScoreEngine>,
+    database: State<'_, Database>,
+) -> Result<SecurityScore, String> {
+    score.current(&database)
+}
+
+fn collector_coverage(collector: &CollectorHealth) -> ScoreCoverage {
+    ScoreCoverage {
+        component: collector.id.clone(),
+        status: match collector.status {
+            CollectorStatus::Healthy => "healthy",
+            CollectorStatus::Degraded => "degraded",
+            CollectorStatus::Failed => "failed",
+        }
+        .into(),
+        detail: collector.detail.clone(),
+    }
+}
+
+fn refresh_security_analysis(
+    database: &Database,
+    detection: &DetectionEngine,
+    score: &ScoreEngine,
+    mut coverage: Vec<ScoreCoverage>,
+    issues: &mut Vec<CollectionIssue>,
+) {
+    let mut detection_status = ScoreCoverage {
+        component: "detection-engine".into(),
+        status: "healthy".into(),
+        detail: "Factual event checkpoint is current".into(),
+    };
+    let mut batches = 0u8;
+    loop {
+        match detection.process_pending(database) {
+            Ok(summary) => {
+                batches = batches.saturating_add(1);
+                if !summary.has_more || batches >= 8 {
+                    if summary.has_more {
+                        detection_status.status = "degraded".into();
+                        detection_status.detail =
+                            "Detection analysis backlog remains after the bounded refresh".into();
+                    }
+                    break;
+                }
+            }
+            Err(message) => {
+                detection_status.status = "failed".into();
+                detection_status.detail =
+                    "Detection analysis will retry from its checkpoint".into();
+                issues.push(CollectionIssue {
+                    component: "detection-engine".into(),
+                    message,
+                });
+                break;
+            }
+        }
+    }
+    coverage.push(detection_status);
+    if let Err(message) = score.calculate_and_persist(database, coverage) {
+        issues.push(CollectionIssue {
+            component: "security-score".into(),
+            message,
+        });
+    }
+}
+
+#[tauri::command]
 pub fn get_capabilities() -> Vec<Capability> {
     vec![
         Capability {
@@ -205,8 +351,17 @@ pub fn get_capabilities() -> Vec<Capability> {
         },
         Capability {
             id: "security-score".into(),
-            status: "not_implemented".into(),
-            detail: "Detection engine and explainable score are not implemented".into(),
+            status: "available".into(),
+            detail: "Explainable local score derived from calibrated detections and coverage"
+                .into(),
+        },
+        Capability {
+            id: "detection-engine".into(),
+            status: "available".into(),
+            detail: format!(
+                "{} versioned local rules over factual provenance",
+                rules::registry().len()
+            ),
         },
     ]
 }

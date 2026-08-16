@@ -40,34 +40,37 @@
 - Security Events table and evidence drawer without fabricated severity
 - SQLite schema v4 and bounded event retention
 
-## Recommended Sprint 2B
+## Sprint 2B — Explainable detections and Security Score v1 (complete)
 
-Schema-v5 handoff hardening is complete before detection work: controlled persisted Error,
-actual Windows system-volume discovery without assuming `C:\`, constrained factual-event
-storage, append-only transition provenance, and cursor/entity-history APIs are in place.
+- Independent Rust Detection Engine consuming only factual-history deltas through a durable
+  checkpoint; no continuous full-history scan and no retroactive pre-v6 classification
+- Six enabled, immutable v1 rules with typed conditions, exclusions, evidence requirements,
+  correlation windows, precedence, false-positive context, and safe remediation guidance
+- Separate detection, evidence, and append-only history storage with exact rule provenance,
+  deduplication, reopen, workflow, cursor pagination, and source-event retention protection
+- Detections/Events workspace, structured evidence drawer, Rules view, real command-palette
+  actions, bounded paging, in-app notification seeding, and accessible responsive behavior
+- Conservative Security Score formula v1 with baseline/collector coverage gates, grouped
+  penalties, complete breakdown, immutable snapshots, formula version, and 365-day retention
+- SQLite schema v6; real EXE/MSI/NSIS smoke; controlled benign process fixture; no malware,
+  service mutation, external reputation, shell response, or fabricated release data
 
-Then build a small explainable rule engine over the factual Sprint 2A event contract. Add
-versioned rule definitions, evidence requirements, calibrated severity, entity history,
-and investigation workflow. Do not calculate a composite Security Score until rules and
-calibration are validated. External reputation, automated response, and process/service
-control remain separate future authorization boundaries.
-
-Service PID remains live-only telemetry rather than service identity and may be attached to
-factual event evidence when available. Company metadata remains distinct from signer identity,
-executable content hashing stays on-demand or bounded/background, failed service enumeration
-never means `Stopped`, and isolated new network endpoints never justify elevated severity.
-The one-minute development baseline is not a production calibration dataset.
+`EDY-PROC-003` remains deferred: current executable identity is not stable enough to infer
+tampering from metadata changes without bounded content identity. High/Critical rules,
+production calibration, external intelligence, notifications native to Windows, automated
+response, and long-term detection archival/downsampling remain future work.
 
 ## Later increments
 
-1. Software inventory and conservative device discovery
-2. Explainable detection rules, alerts, and event investigation
+1. Production calibration and broader legitimate-scenario coverage for the six-rule registry
+2. Software inventory and conservative device discovery
 3. Reports and opt-in integrations
 4. Vulnerability and threat-intelligence sources with secure credentials
-5. Explainable Security Score after evidence, calibration, and tests exist
+5. Carefully authorized response actions, each behind a separate security boundary
 
-## Explicit non-goals through Sprint 2A
+## Explicit non-goals through Sprint 2B
 
 VirusTotal, AbuseIPDB, HIBP, urlscan, NVD/CISA, geolocation, reputation,
-advanced network scanning, CVE matching, AI, process/network blocking, firewall
-management, and service control are not started.
+advanced network scanning, CVE matching, AI/ML classification, process/network blocking,
+firewall management, service control, command-line persistence, and continuous executable
+content hashing are not started.

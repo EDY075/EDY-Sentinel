@@ -2,7 +2,7 @@
 
 All notable changes follow Keep a Changelog principles.
 
-## [Unreleased] — pre-Sprint 2B hardening
+## [0.4.0] — 2026-08-16
 
 ### Added
 
@@ -10,19 +10,37 @@ All notable changes follow Keep a Changelog principles.
   entity history, and append-only factual-event transition provenance
 - Versioned Rust/TypeScript `RuleDefinition` contract without an evaluator or operational rules
 - Controlled persisted baseline Error metadata with sanitized messages and explicit recovery
+- SQLite schema v6 with immutable rule versions, local enabled state, Detections, evidence,
+  append-only Detection history, Security Score snapshots, and a durable analysis checkpoint
+- Independent Rust Detection Engine with six versioned rules, typed negative conditions,
+  bounded delta processing, correlation windows, precedence, deduplication, and reopen policy
+- Explainable Security Score formula v1 with Ready/coverage gates, grouped penalties,
+  formula version, complete breakdown, snapshot deduplication, and 365-day retention
+- Cursor-paginated Detections and factual Events workspace, structured provenance drawer,
+  Rules view, score breakdown, real command-palette actions, and in-app Detection notices
 
 ### Fixed
 
 - Host identity now resolves the actual Windows installation volume instead of assuming `C:\`
 - Sprint 2B handoff now lists the real Rust, TypeScript, IPC, context, page, drawer, and action APIs
 - Service PID is documented and implemented as runtime evidence rather than persistent identity
+- Detection evidence now renders as structured factual fields instead of opaque JSON
 
 ### Security
 
 - Factual evidence history cannot be overwritten, baseline references cannot cascade-delete
   events, and event status/activity values are constrained at both Rust and SQLite boundaries
-- No Detection Engine, operational severity, numeric Security Score, external API, or response
-  action was introduced
+- Detection analysis uses a transaction/checkpoint independent from baseline Error semantics;
+  retained factual events referenced by Detection evidence cannot be removed
+- Rule/score inputs are parameterized and allowlisted; no external API, shell, PowerShell,
+  command-line persistence, destructive response, or arbitrary rule editing was introduced
+
+### Calibration
+
+- All v1 rules are capped at Medium; `unknown` and `restricted` never mean unsigned
+- `EDY-PROC-003` remains deferred until executable identity can be established reliably
+- Controlled native smoke produced only the expected process-rule findings; normal host use did
+  not create an unrelated Detection flood
 
 ## [0.3.0] — 2026-08-16
 

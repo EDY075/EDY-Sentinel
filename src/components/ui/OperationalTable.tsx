@@ -23,18 +23,22 @@ interface OperationalTableProps<T> {
   emptyTitle: string
   emptyDescription: string
   ariaLabel: string
+  sortable?: boolean
+  pageKey?: string | number
 }
 
 const ROW_HEIGHT = 45
 const OVERSCAN = 6
 
-export function OperationalTable<T>({ rows, columns, rowKey, selectedKey, sortKey, sortDirection, onSort, onSelect, emptyTitle, emptyDescription, ariaLabel }: OperationalTableProps<T>) {
+export function OperationalTable<T>({ rows, columns, rowKey, selectedKey, sortKey, sortDirection, onSort, onSelect, emptyTitle, emptyDescription, ariaLabel, sortable = true, pageKey }: OperationalTableProps<T>) {
   const [scrollTop, setScrollTop] = useState(0)
   const [viewportHeight, setViewportHeight] = useState(420)
   const [focusIndex, setFocusIndex] = useState(0)
   const tableId = useId()
   const viewportRef = useRef<HTMLDivElement>(null)
   const template = columns.map(({ width }) => width).join(' ')
+  const compactTemplate = columns.filter(({ priority }) => priority !== 'tertiary').map(({ width }) => width).join(' ')
+  const mobileTemplate = columns.filter(({ priority }) => !priority).map(({ width }) => width).join(' ')
 
   useEffect(() => {
     const viewport = viewportRef.current
@@ -52,6 +56,12 @@ export function OperationalTable<T>({ rows, columns, rowKey, selectedKey, sortKe
       if (viewportRef.current) viewportRef.current.scrollTop = maxScroll
     }
   }, [rows.length, scrollTop, viewportHeight])
+
+  useEffect(() => {
+    setFocusIndex(0)
+    setScrollTop(0)
+    if (viewportRef.current) viewportRef.current.scrollTop = 0
+  }, [pageKey])
 
   const windowed = useMemo(() => {
     const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN)
@@ -75,15 +85,15 @@ export function OperationalTable<T>({ rows, columns, rowKey, selectedKey, sortKe
 
   return (
     <div className="operational-table" role="grid" aria-label={ariaLabel} aria-rowcount={rows.length + 1} aria-activedescendant={rows.length ? `${tableId}-row-${focusIndex}` : undefined} tabIndex={0} onKeyDown={onKeyDown}>
-      <div className="operational-table__header" role="row" style={{ '--table-template': template } as CSSProperties}>
-        {columns.map((column) => <button key={String(column.key)} type="button" role="columnheader" className="operational-table__heading" data-priority={column.priority} aria-sort={sortKey === column.key ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'} onClick={() => onSort(column.key)}><span>{column.label}</span>{sortKey === column.key && (sortDirection === 'asc' ? <ArrowUp size={11} /> : <ArrowDown size={11} />)}</button>)}
+      <div className="operational-table__header" role="row" style={{ '--table-template': template, '--table-template-compact': compactTemplate, '--table-template-mobile': mobileTemplate } as CSSProperties}>
+        {columns.map((column) => sortable ? <button key={String(column.key)} type="button" role="columnheader" className="operational-table__heading" data-priority={column.priority} aria-sort={sortKey === column.key ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'} onClick={() => onSort(column.key)}><span>{column.label}</span>{sortKey === column.key && (sortDirection === 'asc' ? <ArrowUp size={11} /> : <ArrowDown size={11} />)}</button> : <div key={String(column.key)} role="columnheader" className="operational-table__heading" data-priority={column.priority}><span>{column.label}</span></div>)}
       </div>
       <div ref={viewportRef} className="operational-table__viewport" onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}>
         {!rows.length ? <div className="table-empty"><strong>{emptyTitle}</strong><span>{emptyDescription}</span></div> : <div className="operational-table__space" style={{ height: rows.length * ROW_HEIGHT }}>
           {windowed.rows.map((row, offset) => {
             const index = windowed.start + offset
             const key = rowKey(row)
-            return <div id={`${tableId}-row-${index}`} key={key} role="row" aria-rowindex={index + 2} aria-selected={selectedKey === key} data-focused={focusIndex === index || undefined} className="operational-table__row" style={{ '--table-template': template, transform: `translateY(${index * ROW_HEIGHT}px)` } as CSSProperties} onMouseEnter={() => setFocusIndex(index)} onDoubleClick={() => onSelect(row)} onClick={() => onSelect(row)}>{columns.map((column) => <div key={String(column.key)} role="gridcell" data-priority={column.priority} title={String(row[column.key] ?? 'Unavailable')}>{column.render(row)}</div>)}</div>
+            return <div id={`${tableId}-row-${index}`} key={key} role="row" aria-rowindex={index + 2} aria-selected={selectedKey === key} data-focused={focusIndex === index || undefined} className="operational-table__row" style={{ '--table-template': template, '--table-template-compact': compactTemplate, '--table-template-mobile': mobileTemplate, transform: `translateY(${index * ROW_HEIGHT}px)` } as CSSProperties} onMouseEnter={() => setFocusIndex(index)} onDoubleClick={() => onSelect(row)} onClick={() => onSelect(row)}>{columns.map((column) => <div key={String(column.key)} role="gridcell" data-priority={column.priority} title={String(row[column.key] ?? 'Unavailable')}>{column.render(row)}</div>)}</div>
           })}
         </div>}
       </div>

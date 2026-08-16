@@ -41,6 +41,6 @@ export function BaselinePanel({ baseline, database, onAction, onOpenEvents }: { 
         <button type="button" className="button" onClick={onOpenEvents}>Security events</button>
       </div>
     </div>
-    <footer className="baseline-score-boundary"><span><strong>Security Score</strong><small>Pending detection engine · no numeric score</small></span><span><strong>SQLite v{database?.schemaVersion ?? '—'}</strong><small>{database?.writable ? 'Local persistence ready' : 'Persistence unavailable'}</small></span></footer>
+    <footer className="baseline-score-boundary"><span><strong>SQLite v{database?.schemaVersion ?? '—'}</strong><small>{database?.writable ? 'Local persistence ready' : 'Persistence unavailable'}</small></span></footer>
   </section>
 }

@@ -18,7 +18,7 @@ use std::{
 };
 
 const BASELINE_SCHEMA_VERSION: u32 = 1;
-const EVENT_SCHEMA_VERSION: u32 = 1;
+const EVENT_SCHEMA_VERSION: u32 = 2;
 const DEFAULT_LEARNING_PERIOD_SECONDS: u64 = 24 * 60 * 60;
 const LIVE_OBSERVATION_INTERVAL: Duration = Duration::from_secs(10);
 const NETWORK_OBSERVATION_INTERVAL: Duration = Duration::from_secs(15);
@@ -757,6 +757,7 @@ fn detect_live(
                 "processes",
                 json!({
                     "process": process.name,
+                    "executableKey": executable.key,
                     "path": executable.normalized_path,
                     "company": process.company,
                     "signer": process.signer,
@@ -788,6 +789,8 @@ fn detect_live(
                 "processes",
                 json!({
                     "process": process.name,
+                    "executableKey": executable.key,
+                    "parentExecutableKey": parent_identity.as_ref().map(|identity| &identity.key),
                     "path": executable.normalized_path,
                     "parentProcess": parent.map(|value| &value.name),
                     "user": process.user,
@@ -812,8 +815,10 @@ fn detect_live(
                     "processes",
                     json!({
                         "parent": parent.name,
+                        "parentExecutableKey": parent_identity.key,
                         "parentPath": parent.executable_path,
                         "child": process.name,
+                        "childExecutableKey": executable.key,
                         "childPath": process.executable_path,
                         "firstObserved": now
                     }),
@@ -838,6 +843,7 @@ fn detect_live(
                     "connections",
                     json!({
                         "process": destination.process_name,
+                        "executableKey": destination.executable_key,
                         "remoteIp": destination.remote_ip,
                         "remotePort": destination.remote_port,
                         "protocol": destination.protocol,
@@ -868,7 +874,7 @@ fn detect_live(
                 "New Windows service observed",
                 now,
                 "services",
-                service_evidence(service, now),
+                service_evidence(service, key, now),
                 json!({"comparison": "service not present in baseline", "baselineVersion": baseline.version}),
                 Some("high"),
             )?);
@@ -909,6 +915,7 @@ fn detect_live(
                     now,
                     "services",
                     json!({
+                        "serviceKey": key,
                         "serviceName": service.service_name,
                         "displayName": service.display_name,
                         "field": field,
@@ -934,6 +941,7 @@ fn detect_live(
                 now,
                 "services",
                 json!({
+                    "serviceKey": key,
                     "serviceName": known.service_name,
                     "displayName": known.display_name,
                     "lastKnownStartupType": known.startup_type,
@@ -1034,6 +1042,7 @@ fn detect_network(
                 now,
                 "system",
                 json!({
+                    "correlationCycle": now,
                     "beforeInterface": stored.primary_interface_key,
                     "afterInterface": current.primary_interface_key,
                     "beforeAddress": stored.primary_ipv4,
@@ -1057,7 +1066,7 @@ fn detect_network(
                 "Default gateway changed",
                 now,
                 "system",
-                json!({"before": stored.gateway, "after": current.gateway, "firstObserved": now}),
+                json!({"before": stored.gateway, "after": current.gateway, "correlationCycle": now, "firstObserved": now}),
                 json!({"comparison": "current gateway differs from baseline", "baselineVersion": baseline.version}),
                 Some("high"),
             )?);
@@ -1072,7 +1081,7 @@ fn detect_network(
                 "DNS resolver configuration changed",
                 now,
                 "system",
-                json!({"before": stored.dns, "after": current.dns, "firstObserved": now}),
+                json!({"before": stored.dns, "after": current.dns, "correlationCycle": now, "firstObserved": now}),
                 json!({"comparison": "current DNS resolver set differs from baseline", "baselineVersion": baseline.version}),
                 Some("high"),
             )?);
@@ -1561,7 +1570,11 @@ fn enforce_event_retention(transaction: &Transaction<'_>) -> Result<(), String> 
         .execute(
             "DELETE FROM security_events
              WHERE condition_active = 0 AND status IN ('resolved', 'ignored')
-               AND COALESCE(last_seen_at, occurred_at) < ?1",
+               AND COALESCE(last_seen_at, occurred_at) < ?1
+               AND NOT EXISTS (
+                   SELECT 1 FROM detection_evidence
+                   WHERE source_event_id = security_events.id
+               )",
             [&cutoff],
         )
         .map(|_| ())
@@ -1569,15 +1582,20 @@ fn enforce_event_retention(transaction: &Transaction<'_>) -> Result<(), String> 
     transaction
         .execute(
             "DELETE FROM security_events
-             WHERE condition_active = 0 AND COALESCE(last_seen_at, occurred_at) < ?1",
+             WHERE condition_active = 0 AND COALESCE(last_seen_at, occurred_at) < ?1
+               AND NOT EXISTS (
+                   SELECT 1 FROM detection_evidence
+                   WHERE source_event_id = security_events.id
+               )",
             [&maximum_cutoff],
         )
         .map(|_| ())
         .map_err(|_| "Unable to enforce maximum security event retention".into())
 }
 
-fn service_evidence(service: &ServiceRecord, now: &str) -> Value {
+fn service_evidence(service: &ServiceRecord, service_key: &str, now: &str) -> Value {
     json!({
+        "serviceKey": service_key,
         "serviceName": service.service_name,
         "displayName": service.display_name,
         "status": service.status,

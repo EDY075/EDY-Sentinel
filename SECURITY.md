@@ -56,6 +56,40 @@
 - No shell, arbitrary path, cloud telemetry, external API, firewall, process termination,
   or service-control capability was added.
 
+## Sprint 2B detection and score posture
+
+- Factual Security Events and rule-produced Detections are separate tables, models, APIs, and
+  UI views. Facts retain no severity; React never decides whether a fact is a Detection.
+- The Detection Engine consumes append-only event-history deltas through a durable checkpoint.
+  Migration v6 seeds the checkpoint at cutover, so installing a new rule does not silently
+  reinterpret pre-v6 history.
+- Rule evaluation runs in an analysis transaction independent from the Baseline Engine. An
+  analysis failure retries from its checkpoint and cannot persist a false baseline Error.
+- Every Detection stores an immutable rule ID/version and source-event evidence. Foreign keys
+  use restrictive history-preserving behavior; factual retention skips referenced evidence.
+- Rule IDs, versions, statuses, severities, confidence, limits, cursors, filters, and enabled
+  changes cross typed/validated IPC boundaries. SQL values are bound; no UI string becomes SQL
+  syntax and the UI cannot edit arbitrary rule conditions.
+- The six v1 rules require corroborating evidence and are capped at Medium. Signature states
+  `unknown` and `restricted` are never treated as unsigned; loopback, unspecified, multicast,
+  unavailable collectors, incomplete service configuration, ambiguous process correlation,
+  and non-Ready baselines fail closed.
+- Confidence means evidence/correlation quality, not malware probability. Severity explains the
+  corroborated facts and never comes from novelty, signer absence, port, or destination alone.
+- Security Score formula v1 is not a percentage guarantee. It requires a Ready baseline,
+  enabled rules, and measured system/process/connection/service coverage. Failed or incomplete
+  coverage produces no number; degraded coverage is explicitly Limited.
+- Score inputs are active Detections only. Resolved and Ignored records preserve history but do
+  not penalize current posture; Acknowledged remains relevant while its condition is active.
+- Controlled smoke uses a benign test helper that only sleeps. It performs no malware behavior,
+  network action, service mutation, persistence, privilege change, or automated remediation.
+- Local screenshots and the SQLite database contain sensitive endpoint metadata and stay outside
+  Git. The release contains no fixture data, database, screenshot, dump, API key, or credential.
+
+Known dependency-audit warnings are transitive: GTK3/ATK/GDK and `glib` are outside the Windows
+runtime graph; `proc-macro-error` and the `unic` family are unmaintained transitives. No applicable
+Rust or npm vulnerability was reported in the final audit, but these upgrade debts remain visible.
+
 ## Future integration credentials
 
 Secrets must be stored in Windows Credential Manager. SQLite may contain only a non-secret reference. Secrets must never enter React state, logs, `.env`, command-line arguments, snapshots, or Git.

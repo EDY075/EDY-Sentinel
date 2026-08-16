@@ -402,3 +402,218 @@ pub struct SecurityEventStatusInput {
     pub event_id: String,
     pub status: SecurityEventStatus,
 }
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[serde(rename_all = "snake_case")]
+pub enum DetectionSeverity {
+    Informational,
+    Low,
+    Medium,
+    High,
+    Critical,
+}
+
+impl DetectionSeverity {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Informational => "informational",
+            Self::Low => "low",
+            Self::Medium => "medium",
+            Self::High => "high",
+            Self::Critical => "critical",
+        }
+    }
+
+    pub fn from_persisted(value: &str) -> Result<Self, String> {
+        match value {
+            "informational" => Ok(Self::Informational),
+            "low" => Ok(Self::Low),
+            "medium" => Ok(Self::Medium),
+            "high" => Ok(Self::High),
+            "critical" => Ok(Self::Critical),
+            _ => Err("Stored detection severity is invalid".into()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum DetectionConfidence {
+    Low,
+    Medium,
+    High,
+}
+
+impl DetectionConfidence {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Low => "low",
+            Self::Medium => "medium",
+            Self::High => "high",
+        }
+    }
+
+    pub fn from_persisted(value: &str) -> Result<Self, String> {
+        match value {
+            "low" => Ok(Self::Low),
+            "medium" => Ok(Self::Medium),
+            "high" => Ok(Self::High),
+            _ => Err("Stored detection confidence is invalid".into()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DetectionStatus {
+    New,
+    Investigating,
+    Acknowledged,
+    Resolved,
+    Ignored,
+}
+
+impl DetectionStatus {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::New => "new",
+            Self::Investigating => "investigating",
+            Self::Acknowledged => "acknowledged",
+            Self::Resolved => "resolved",
+            Self::Ignored => "ignored",
+        }
+    }
+
+    pub fn from_persisted(value: &str) -> Result<Self, String> {
+        match value {
+            "new" => Ok(Self::New),
+            "investigating" => Ok(Self::Investigating),
+            "acknowledged" => Ok(Self::Acknowledged),
+            "resolved" => Ok(Self::Resolved),
+            "ignored" => Ok(Self::Ignored),
+            _ => Err("Stored detection status is invalid".into()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct DetectionExplanation {
+    pub what_happened: String,
+    pub why_flagged: String,
+    pub severity_reason: String,
+    pub confidence_reason: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DetectionRecord {
+    pub detection_id: String,
+    pub rule_id: String,
+    pub rule_version: u32,
+    pub entity_type: String,
+    pub entity_key: String,
+    pub title: String,
+    pub summary: String,
+    pub severity: DetectionSeverity,
+    pub confidence: DetectionConfidence,
+    pub status: DetectionStatus,
+    pub first_detected_at: String,
+    pub last_detected_at: String,
+    pub occurrence_count: u64,
+    pub baseline_id: Option<String>,
+    pub explanation: DetectionExplanation,
+    pub remediation_guidance: Vec<String>,
+    pub condition_active: bool,
+    pub schema_version: u32,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DetectionStatusInput {
+    pub detection_id: String,
+    pub status: DetectionStatus,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuleEnabledInput {
+    pub rule_id: String,
+    pub enabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DetectionEvidenceRecord {
+    pub evidence_id: String,
+    pub event_id: String,
+    pub evidence_type: String,
+    pub label: String,
+    pub value: serde_json::Value,
+    pub observed_at: String,
+    pub source: String,
+    pub event_type: String,
+    pub entity_type: String,
+    pub entity_key: String,
+    pub event_schema_version: u32,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ScoreState {
+    Available,
+    Limited,
+    Unavailable,
+}
+
+impl ScoreState {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Available => "available",
+            Self::Limited => "limited",
+            Self::Unavailable => "unavailable",
+        }
+    }
+
+    pub fn from_persisted(value: &str) -> Result<Self, String> {
+        match value {
+            "available" => Ok(Self::Available),
+            "limited" => Ok(Self::Limited),
+            "unavailable" => Ok(Self::Unavailable),
+            _ => Err("Stored score state is invalid".into()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ScoreCoverage {
+    pub component: String,
+    pub status: String,
+    pub detail: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ScoreBreakdown {
+    pub correlation_key: String,
+    pub title: String,
+    pub severity: DetectionSeverity,
+    pub confidence: DetectionConfidence,
+    pub penalty: u32,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SecurityScore {
+    pub state: ScoreState,
+    pub score: Option<u32>,
+    pub label: Option<String>,
+    pub generated_at: Option<String>,
+    pub formula_version: u32,
+    pub active_detection_count: u64,
+    pub highest_severity: Option<DetectionSeverity>,
+    pub coverage: Vec<ScoreCoverage>,
+    pub breakdown: Vec<ScoreBreakdown>,
+    pub reason: Option<String>,
+}

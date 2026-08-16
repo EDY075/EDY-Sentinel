@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Activity, Bell, Boxes, ChevronLeft, CircleHelp, Command, FileText, Gauge, LayoutDashboard, Menu, Network, Palette, Pause, Play, RefreshCw, Search, Settings, Shield, Wifi } from 'lucide-react'
+import { Activity, Bell, Boxes, ChevronLeft, CircleHelp, Command, FileText, Gauge, LayoutDashboard, Menu, Network, Palette, Pause, Play, RefreshCw, Search, Settings, Shield, ShieldAlert, SlidersHorizontal, Wifi } from 'lucide-react'
 import './App.css'
 import { Dialog, IconButton, Skeleton, Tooltip } from './components/ui/primitives'
 import { ConnectionsView } from './features/connections/ConnectionsView'
@@ -11,7 +11,9 @@ import { useTelemetry } from './features/telemetry/TelemetryProvider'
 import { ThemeMenu } from './features/theme/ThemeMenu'
 import { BaselineActionDialog } from './features/baseline/BaselineActionDialog'
 import type { BaselineActionMode } from './features/baseline/baseline'
-import { SecurityEventsView } from './features/events/SecurityEventsView'
+import { SecurityWorkspace } from './features/security/SecurityWorkspace'
+import type { SecuritySection } from './features/security/SecurityWorkspace'
+import { ScoreBreakdownDrawer } from './features/score/ScoreBreakdownDrawer'
 import { loadTheme, persistTheme } from './lib/tauri'
 import type { ThemeName } from './types/system'
 
@@ -31,7 +33,13 @@ const headings: Record<Page, { eyebrow: string; title: string; description: stri
   processes: { eyebrow: 'Live activity', title: 'Processes', description: 'Observe real Windows processes and their runtime footprint.', topbar: 'Process activity' },
   network: { eyebrow: 'Network telemetry', title: 'Active connections', description: 'Inspect current TCP and UDP endpoints correlated with processes.', topbar: 'Active connections' },
   services: { eyebrow: 'System telemetry', title: 'Windows services', description: 'Review service state and startup configuration without changing the system.', topbar: 'Windows services' },
-  events: { eyebrow: 'Behavioral evidence', title: 'Security events', description: 'Review factual changes against the active baseline. No threat severity is assigned.', topbar: 'Security events' },
+  events: { eyebrow: 'Evidence-based analysis', title: 'Security analysis', description: 'Review explainable detections separately from factual security events.', topbar: 'Security analysis' },
+}
+
+const securityHeadings: Record<SecuritySection, { eyebrow: string; title: string; description: string; topbar: string }> = {
+  detections: { eyebrow: 'Evidence-based analysis', title: 'Detections', description: 'Review rule conclusions supported by correlated evidence.', topbar: 'Detections' },
+  events: { eyebrow: 'Behavioral evidence', title: 'Security events', description: 'Review factual observations. No threat classification is assigned.', topbar: 'Security events' },
+  rules: { eyebrow: 'Detection policy', title: 'Detection rules', description: 'Review versioned local rules and their operational state.', topbar: 'Detection rules' },
 }
 
 function App() {
@@ -45,8 +53,10 @@ function App() {
   const [toast, setToast] = useState<string | null>(null)
   const [baselineAction, setBaselineAction] = useState<BaselineActionMode | null>(null)
   const [baselineBusy, setBaselineBusy] = useState(false)
-  const { live, setLive, loading, refreshing, overview, database, snapshot, error, health, refresh, baseline, securityEvents, startBaseline, resetBaseline, completeBaseline, setEventStatus } = useTelemetry()
-  const heading = headings[page]
+  const [securitySection, setSecuritySection] = useState<SecuritySection>('detections')
+  const [scoreOpen, setScoreOpen] = useState(false)
+  const { live, setLive, loading, refreshing, overview, database, snapshot, error, health, refresh, baseline, securityScore, securityError, securityRevision, securityNotice, refreshSecurity, startBaseline, resetBaseline, completeBaseline, setEventStatus, setDetectionStatus, clearSecurityNotice } = useTelemetry()
+  const heading = page === 'events' ? securityHeadings[securitySection] : headings[page]
   const collectorsFailed = health.some(({ state }) => state === 'failed')
   const collectorsDegraded = health.some(({ state }) => state === 'degraded')
   const collectorStatus = !live ? { title: 'Live updates paused', detail: 'Latest snapshot retained' } : collectorsFailed ? { title: 'Collector failed', detail: 'Review the factual error details' } : collectorsDegraded ? { title: 'Collector degraded', detail: 'Available data remains visible' } : { title: 'Collectors healthy', detail: 'Coverage shown separately' }
@@ -66,6 +76,11 @@ function App() {
     const timeout = window.setTimeout(() => setToast(null), 3200)
     return () => window.clearTimeout(timeout)
   }, [toast])
+  useEffect(() => {
+    if (!securityNotice) return
+    setToast(securityNotice.message)
+    clearSecurityNotice()
+  }, [clearSecurityNotice, securityNotice])
 
   const changeTheme = async (nextTheme: ThemeName) => {
     const previous = theme
@@ -76,8 +91,10 @@ function App() {
   }
 
   const openPage = (nextPage: Page) => { setPage(nextPage); setPaletteOpen(false); setMobileOpen(false) }
+  const openSecurity = (section: SecuritySection) => { setSecuritySection(section); openPage('events') }
   const setLiveWithToast = (nextLive: boolean) => { setLive(nextLive); setToast(nextLive ? 'Live telemetry resumed' : 'Live telemetry paused at the latest snapshot') }
   const runRefresh = () => { void refresh(); setToast('Collecting current Windows telemetry') }
+  const runSecurityRefresh = () => { void refreshSecurity(); setToast('Refreshing local security analysis') }
   const runBaselineAction = async (input: { confirmation: string; learningPeriodSeconds?: number }) => {
     if (!baselineAction) return
     setBaselineBusy(true)
@@ -93,7 +110,11 @@ function App() {
     { label: 'Open processes', detail: 'Observe active Windows processes', icon: Activity, run: () => openPage('processes') },
     { label: 'Open network connections', detail: 'Inspect TCP and UDP endpoints', icon: Network, run: () => openPage('network') },
     { label: 'Open services', detail: 'Review Windows service state', icon: Gauge, run: () => openPage('services') },
-    { label: 'Open security events', detail: 'Review factual baseline differences', icon: FileText, run: () => openPage('events') },
+    { label: 'Open detections', detail: 'Review evidence-backed rule conclusions', icon: ShieldAlert, run: () => openSecurity('detections') },
+    { label: 'Open security events', detail: 'Review factual baseline differences', icon: FileText, run: () => openSecurity('events') },
+    { label: 'View Security Score', detail: 'Open the score and its explainable breakdown', icon: Gauge, run: () => { openPage('overview'); setScoreOpen(true) } },
+    { label: 'View detection rules', detail: 'Review versioned local rule configuration', icon: SlidersHorizontal, run: () => openSecurity('rules') },
+    { label: 'Refresh security analysis', detail: 'Evaluate current local security state', icon: RefreshCw, run: () => { setPaletteOpen(false); runSecurityRefresh() } },
     { label: 'View baseline', detail: 'Open behavioral baseline details', icon: Shield, run: () => openPage('overview') },
     { label: 'Start new baseline', detail: 'Preserve history and begin a new learning version', icon: Play, run: () => { setPaletteOpen(false); setBaselineAction('start') } },
     ...(baseline && baseline.status !== 'not_initialized' ? [{ label: 'Reset baseline', detail: 'Requires strong confirmation and preserves history', icon: RefreshCw, run: () => { setPaletteOpen(false); setBaselineAction('reset') } }] : []),
@@ -132,13 +153,13 @@ function App() {
           <div className="page-heading"><div><p>{heading.eyebrow}</p><h2>{page === 'overview' ? `Welcome, ${overview?.host.username ?? 'operator'}` : heading.title}</h2><span>{heading.description}</span></div><button type="button" className="button button--primary" onClick={runRefresh} disabled={refreshing}><RefreshCw size={16} className={refreshing ? 'spin' : ''} /> Refresh telemetry</button></div>
           <div className="operational-layout">
             <CollectorStrip health={health} live={live} refreshing={refreshing} onLiveChange={setLiveWithToast} onRefresh={runRefresh} />
-            {page === 'overview' && <Overview data={overview} database={database} loading={loading} error={error} onRefresh={refresh} baseline={baseline} onBaselineAction={setBaselineAction} onOpenEvents={() => openPage('events')} />}
+            {page === 'overview' && <Overview data={overview} database={database} loading={loading} error={error} onRefresh={refresh} baseline={baseline} onBaselineAction={setBaselineAction} onOpenEvents={() => openSecurity('events')} securityScore={securityScore} onOpenScore={() => setScoreOpen(true)} />}
             {page !== 'overview' && page !== 'events' && loading && !snapshot && <OperationalLoading />}
             {page !== 'overview' && page !== 'events' && !loading && !snapshot && <div className="error-state"><span><Activity size={20} /></span><div><strong>Operational telemetry unavailable</strong><p>{error ?? 'The live collector did not return a snapshot.'}</p></div><button type="button" className="button" onClick={runRefresh}>Try again</button></div>}
             {page === 'processes' && snapshot && <ProcessesView processes={snapshot.processes} connections={snapshot.connections} currentUser={overview?.host.username} />}
             {page === 'network' && snapshot && <ConnectionsView connections={snapshot.connections} />}
             {page === 'services' && snapshot && <ServicesView services={snapshot.services} />}
-            {page === 'events' && <SecurityEventsView events={securityEvents} onStatusChange={setEventStatus} />}
+            {page === 'events' && <SecurityWorkspace section={securitySection} revision={securityRevision} error={securityError} onSectionChange={setSecuritySection} onRefresh={refreshSecurity} onEventStatusChange={setEventStatus} onDetectionStatusChange={setDetectionStatus} />}
           </div>
         </main>
       </div>
@@ -148,6 +169,7 @@ function App() {
         <div className="command-list"><span>Available now</span>{filteredCommands.map((command) => <button type="button" key={command.label} onClick={command.run}><command.icon size={16} /><div><strong>{command.label}</strong><small>{command.detail}</small></div></button>)}{!filteredCommands.length && <div className="command-empty">No available command matches this search.</div>}</div>
       </Dialog>
       <BaselineActionDialog mode={baselineAction} busy={baselineBusy} onClose={() => setBaselineAction(null)} onConfirm={runBaselineAction} />
+      <ScoreBreakdownDrawer score={securityScore} open={scoreOpen} onClose={() => setScoreOpen(false)} />
       {toast && <div className="toast" role="status"><span className="toast-mark" />{toast}</div>}
     </div>
   )

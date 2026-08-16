@@ -13,7 +13,9 @@ Rust domain models
   -> Windows adapters (Registry, WMI, IP Helper, SCM, sysinfo)
   -> managed TelemetryEngine (cadence, tracking, factual diff)
   -> BaselineEngine (versioned learning, factual comparison, deduplication)
-  -> SQLite repository (migrations, observations, baselines, events, settings)
+  -> DetectionEngine (versioned rules, bounded delta correlation, provenance)
+  -> ScoreEngine (coverage gate, explainable penalties, versioned snapshots)
+  -> SQLite repository (migrations, observations, baselines, events, detections, score)
 ```
 
 ## Frontend responsibilities
@@ -27,6 +29,10 @@ Rust domain models
 - `src/features/services`: read-only Windows services table
 - `src/features/baseline`: behavioral baseline status, details, and guarded lifecycle actions
 - `src/features/events`: factual security-event table and evidence drawer
+- `src/features/detections`: rule conclusions, structured evidence, workflow, and provenance
+- `src/features/rules`: read-only rule metadata and the local enabled switch
+- `src/features/score`: current Security Score and its complete breakdown
+- `src/features/security`: Detections/Events workspace and bounded cursor pager
 - `src/features/theme`: four token-based theme choices
 - `src/components/ui`: reusable badge, status, skeleton, dialog, drawer, tooltip, and chart primitives
 - `src/lib/tauri.ts`: the only frontend IPC entry point
@@ -49,6 +55,11 @@ The frontend cannot execute SQL, WMI, Registry reads, shell commands, or arbitra
   deduplicated tracking, and versioned factual change events
 - `baseline.rs`: host-bound baseline versions, learning/recovery state, executable and
   behavior identity, Ready comparisons, factual event deduplication, and reopen policy
+- `rules.rs`: immutable, versioned rule contract and the six-rule built-in registry
+- `detection.rs`: independent checkpoint consumer, correlation, precedence, deduplication,
+  reopen/status policy, evidence snapshots, and append-only detection history
+- `detection_query.rs`: parameterized keyset pagination and evidence queries
+- `score.rs`: formula-v1 coverage gate, grouped penalties, immutable snapshots, and retention
 - `commands.rs`: narrow Tauri commands and input validation
 - `models.rs`: serialization contracts
 - `persistence/mod.rs`: SQLite lifecycle, migrations, snapshots, and settings
@@ -83,11 +94,14 @@ Collectors do not know about React. The persistence layer does not accept SQL fr
 - UDP remote endpoints and TCP state remain unavailable because those concepts do
   not apply to an unconnected UDP binding.
 - A total orchestration failure becomes an error state.
-- Security Score remains `not_implemented` until an explainable engine exists.
+- Security Events remain factual and have no severity. Detections are separate rule conclusions.
+- Confidence describes evidence/correlation quality, never malware probability.
+- A numeric Security Score exists only with a Ready baseline, enabled rules, and measured
+  system/process/connection/service coverage; otherwise the UI shows an explicit unavailable state.
 
 ## Persistence
 
-SQLite opens from Tauri's `app_data_dir`. Startup enables foreign keys, WAL, and a busy timeout, then applies each migration transactionally. `schema_migrations` is the single version ledger. Current schema version: 5.
+SQLite opens from Tauri's `app_data_dir`. Startup enables foreign keys, WAL, and a busy timeout, then applies each migration transactionally. `schema_migrations` is the single version ledger. Current schema version: 6.
 
 Tables prepared in Sprint 0: `system_snapshots`, `network_snapshots`, `devices`, `alerts`, `security_events`, `settings`, and `integrations`. Integration secrets are not stored in the database; only a future `secret_ref` may be stored.
 
@@ -117,6 +131,14 @@ metadata, and introduces append-only provenance for meaningful event transitions
 adds bounded cursor-pagination/entity-history query support. Continuous refreshes do not
 append provenance rows, preserving the existing cadence and storage profile.
 
+Sprint 2B migration 0006 adds immutable rule versions, local rule state, detections,
+detection evidence/history, score snapshots, and a durable analysis checkpoint. Foreign keys
+use `RESTRICT` where deleting a source would destroy explanation; factual-event retention skips
+events referenced by detection evidence. Rule evaluation runs in its own analysis transaction,
+so a detection failure cannot put the behavioral baseline into Error. The migration seeds the
+checkpoint at the current factual-history maximum: pre-v6 events remain facts and are not
+retroactively classified by a new rule version.
+
 ## Behavioral baseline and security events
 
 The BaselineEngine runs after factual tracking. Live facts are sampled for baseline work no
@@ -140,8 +162,20 @@ must be computed on demand or by bounded background work with caching.
 
 Factual security events have no severity. Their stable key is baseline + event type +
 entity key. Repeated observations update one event. A resolved inactive condition reopens
-under the same ID when it reappears; ignored events stay ignored. Security Score remains
-pending until a future evidence-calibrated detection engine exists.
+under the same ID when it reappears; ignored events stay ignored.
+
+The DetectionEngine consumes only new `security_event_history` rows through a durable cursor,
+in batches of at most 250 and no more than eight batches per refresh. It evaluates six enabled
+v1 rules, all capped at Medium. A Detection stores the exact rule version and immutable source
+evidence. Persistent conditions update one identity; a resolved condition reopens under the same
+ID, while ignored history remains preserved. Rule precedence prevents one executable cluster
+from producing additive lower-specificity score penalties.
+
+Security Score formula v1 starts at 100 and subtracts the highest penalty per correlation group.
+It uses only active detections whose rules remain enabled. Resolved and Ignored detections do not
+contribute; Acknowledged remains active until the condition ends or is resolved. Equal inputs are
+deduplicated, with a 15-minute heartbeat; snapshots have 365-day retention. The value is an
+observed posture under current Sentinel coverage, not a percentage guarantee of security.
 
 The one-minute learning period is a controlled development/test configuration. Events
 created from that deliberately short baseline are not a production calibration dataset.
@@ -152,6 +186,10 @@ every six hours; active rows are never removed. `VACUUM` is not run in the live 
 
 Inactive resolved/ignored security events use 90-day retention; any other inactive
 security event is bounded to 180 days. Active conditions are preserved.
+
+Detection and evidence history are currently preserved without automatic deletion. This is
+intentional for explainability; a future downsampling/archival policy must preserve every source
+needed by an active Detection. Score snapshots use 365-day retention.
 
 ## Live cadence and pause semantics
 
@@ -167,8 +205,8 @@ Manual refresh remains available in both states.
 
 ## Planned module seams
 
-Software inventory, device discovery, detection, baseline, vulnerability, threat
-intelligence, alerts, reports, and integrations remain architectural seams only.
+Software inventory, device discovery, vulnerability, threat intelligence, alerts, reports,
+integrations, and automated response remain architectural seams only.
 Empty fake implementations are deliberately absent.
 
 ## ADRs

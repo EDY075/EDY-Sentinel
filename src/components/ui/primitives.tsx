@@ -2,7 +2,7 @@ import { useEffect, useId, useRef } from 'react'
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react'
 import { X } from 'lucide-react'
 
-export function Badge({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'good' | 'warning' | 'danger' }) {
+export function Badge({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'accent' | 'good' | 'warning' | 'danger' }) {
   return <span className={`badge badge--${tone}`}>{children}</span>
 }
 
@@ -63,7 +63,7 @@ export function Dialog({ open, title, children, onClose }: { open: boolean; titl
   )
 }
 
-export function Drawer({ open, title, children, onClose }: { open: boolean; title: string; children: ReactNode; onClose: () => void }) {
+export function Drawer({ open, title, children, onClose, wide = false }: { open: boolean; title: string; children: ReactNode; onClose: () => void; wide?: boolean }) {
   const drawerRef = useRef<HTMLElement>(null)
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
@@ -78,7 +78,7 @@ export function Drawer({ open, title, children, onClose }: { open: boolean; titl
   }, [open])
   if (!open) return null
   return (
-    <aside ref={drawerRef} tabIndex={-1} className="drawer" role="dialog" aria-modal="false" aria-labelledby={titleId}>
+    <aside ref={drawerRef} tabIndex={-1} className={`drawer ${wide ? 'drawer--wide' : ''}`} role="dialog" aria-modal="false" aria-labelledby={titleId}>
       <header><h2 id={titleId}>{title}</h2><IconButton aria-label="Close drawer" onClick={onClose}><X size={18} /></IconButton></header>
       {children}
     </aside>

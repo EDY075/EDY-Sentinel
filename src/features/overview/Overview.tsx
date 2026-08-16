@@ -2,7 +2,9 @@ import { AlertTriangle, Box, Cpu, Gauge, HardDrive, MemoryStick, MonitorCog, Net
 import { Badge, EmptyState, Skeleton, StatusDot } from '../../components/ui/primitives'
 import type { DatabaseStatus, SystemOverview } from '../../types/system'
 import type { BaselineSummary } from '../../types/baseline'
+import type { SecurityScore } from '../../types/score'
 import { BaselinePanel } from '../baseline/BaselinePanel'
+import { SecurityScorePanel } from '../score/SecurityScorePanel'
 import type { BaselineActionMode } from '../baseline/baseline'
 import { formatBytes, formatUptime, percent } from './format'
 import { summarizePrimaryRoute } from './network'
@@ -16,6 +18,8 @@ interface OverviewProps {
   baseline: BaselineSummary | null
   onBaselineAction: (mode: BaselineActionMode) => void
   onOpenEvents: () => void
+  securityScore: SecurityScore | null
+  onOpenScore: () => void
 }
 
 function MetricCard({ icon, label, value, detail, progress }: { icon: React.ReactNode; label: string; value: string; detail: string; progress?: number }) {
@@ -39,7 +43,7 @@ function LoadingOverview() {
   )
 }
 
-export function Overview({ data, database, loading, error, onRefresh, baseline, onBaselineAction, onOpenEvents }: OverviewProps) {
+export function Overview({ data, database, loading, error, onRefresh, baseline, onBaselineAction, onOpenEvents, securityScore, onOpenScore }: OverviewProps) {
   if (loading) return <LoadingOverview />
   if (error) {
     return (
@@ -110,7 +114,7 @@ export function Overview({ data, database, loading, error, onRefresh, baseline, 
           </div>
         </section>
 
-        <BaselinePanel baseline={baseline} database={database} onAction={onBaselineAction} onOpenEvents={onOpenEvents} />
+        <div className="overview-side-stack"><SecurityScorePanel score={securityScore} baselineStatus={baseline?.status ?? 'not_initialized'} onOpen={onOpenScore} /><BaselinePanel baseline={baseline} database={database} onAction={onBaselineAction} onOpenEvents={onOpenEvents} /></div>
       </div>
 
       {data.issues.length > 0 && <section className="collection-notice"><AlertTriangle size={17} /><div><strong>Some telemetry is unavailable</strong>{data.issues.map((issue) => <p key={issue.component}>{issue.component}: {issue.message}</p>)}</div></section>}

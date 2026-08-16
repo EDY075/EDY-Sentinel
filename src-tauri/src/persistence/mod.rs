@@ -23,6 +23,10 @@ const MIGRATIONS: &[(i64, &str)] = &[
         5,
         include_str!("../../migrations/0005_sprint2_hardening.sql"),
     ),
+    (
+        6,
+        include_str!("../../migrations/0006_detection_engine.sql"),
+    ),
 ];
 
 #[derive(Clone)]
@@ -462,6 +466,32 @@ impl Database {
         Ok(value)
     }
 
+    pub(crate) fn analysis_read<T>(
+        &self,
+        operation: impl FnOnce(&Connection) -> Result<T, String>,
+    ) -> Result<T, String> {
+        let connection = self.connection.lock().map_err(|_| "Database unavailable")?;
+        operation(&connection)
+    }
+
+    /// Detection and score writes deliberately use an independent transaction.
+    /// An analysis failure can be retried from its durable checkpoint and must
+    /// never poison a valid behavioral baseline.
+    pub(crate) fn analysis_transaction<T>(
+        &self,
+        operation: impl FnOnce(&Transaction<'_>) -> Result<T, String>,
+    ) -> Result<T, String> {
+        let mut connection = self.connection.lock().map_err(|_| "Database unavailable")?;
+        let transaction = connection
+            .transaction()
+            .map_err(|_| "Unable to start security analysis transaction")?;
+        let value = operation(&transaction)?;
+        transaction
+            .commit()
+            .map_err(|_| "Unable to commit security analysis transaction")?;
+        Ok(value)
+    }
+
     pub(crate) fn baseline_engine_transaction<T>(
         &self,
         operation: impl FnOnce(&Transaction<'_>) -> Result<T, String>,
@@ -666,7 +696,7 @@ mod tests {
     #[test]
     fn migrations_are_versioned_and_theme_round_trips() {
         let database = Database::in_memory().expect("database should initialize");
-        assert_eq!(database.status().expect("status").0, 5);
+        assert_eq!(database.status().expect("status").0, 6);
         database.set_theme("terminal").expect("theme should save");
         assert_eq!(database.get_theme().expect("theme should load"), "terminal");
     }
@@ -744,12 +774,79 @@ mod tests {
                 |row| row.get(0),
             )
             .expect("history table");
-        assert_eq!(version, 5);
+        let detection_tables: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN (
+                    'detection_rule_versions', 'detection_rule_state', 'detections',
+                    'detection_evidence', 'detection_history', 'security_score_snapshots',
+                    'analysis_checkpoints'
+                )",
+                [],
+                |row| row.get(0),
+            )
+            .expect("detection tables");
+        assert_eq!(version, 6);
         assert_eq!(live_tables, 4);
         assert_eq!(baseline_tables, 7);
         assert_eq!(event_columns, 11);
         assert_eq!(hardening_columns, 2);
         assert_eq!(history_table, 1);
+        assert_eq!(detection_tables, 7);
+    }
+
+    #[test]
+    fn sprint_two_b_schema_preserves_rule_and_detection_provenance() {
+        let database = Database::in_memory().expect("database should initialize");
+        let connection = database.connection.lock().expect("connection lock");
+        let checkpoint: (i64, i64) = connection
+            .query_row(
+                "SELECT cutover_security_event_history_id,
+                        last_security_event_history_id
+                 FROM analysis_checkpoints
+                 WHERE consumer_id = 'detection-engine-v1'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("checkpoint");
+        assert_eq!(checkpoint, (0, 0));
+
+        connection
+            .execute(
+                "INSERT INTO detection_rule_versions(
+                    rule_id, rule_version, name, description, category, definition_json,
+                    definition_sha256, registered_at
+                 ) VALUES ('EDY-PROC-001', 1, 'Rule', 'Description', 'process', '{}',
+                           ?1, '2026-08-16T10:00:00Z')",
+                ["a".repeat(64)],
+            )
+            .expect("rule version");
+        assert!(connection
+            .execute("UPDATE detection_rule_versions SET name = 'Changed'", [],)
+            .is_err());
+        assert!(connection
+            .execute("DELETE FROM detection_rule_versions", [],)
+            .is_err());
+
+        let invalid_detection = connection.execute(
+            "INSERT INTO detections(
+                detection_id, dedup_key, correlation_key, rule_id, rule_version,
+                baseline_id, entity_type, entity_key, title, summary, severity,
+                confidence, severity_reason, confidence_reason, first_detected_at,
+                last_detected_at, explanation_json, created_at, updated_at
+             ) VALUES ('detection', 'dedup', 'correlation', 'EDY-PROC-001', 1,
+                       'missing-baseline', 'process', 'entity', 'Title', 'Summary',
+                       'invented', 'high', 'Reason', 'Reason', '2026-08-16T10:00:00Z',
+                       '2026-08-16T10:00:00Z', '{}', '2026-08-16T10:00:00Z',
+                       '2026-08-16T10:00:00Z')",
+            [],
+        );
+        assert!(invalid_detection.is_err());
+        assert_eq!(
+            connection
+                .query_row("PRAGMA integrity_check", [], |row| row.get::<_, String>(0))
+                .expect("integrity"),
+            "ok"
+        );
     }
 
     #[test]

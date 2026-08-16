@@ -2,6 +2,9 @@ import { invoke } from '@tauri-apps/api/core'
 import type { DatabaseStatus, SystemOverview, ThemeName } from '../types/system'
 import type { LiveTelemetrySnapshot } from '../types/telemetry'
 import type { BaselineAction, BaselineSummary, SecurityEvent, SecurityEventHistoryPage, SecurityEventHistoryQuery, SecurityEventPage, SecurityEventQuery, SecurityEventStatus } from '../types/baseline'
+import type { DetectionEvidencePage, DetectionEvidenceQuery, DetectionPage, DetectionQuery, DetectionStatus } from '../types/detection'
+import type { SecurityScore } from '../types/score'
+import type { RuleDefinition } from '../types/rules'
 
 export const isTauri = () => '__TAURI_INTERNALS__' in window
 
@@ -72,4 +75,32 @@ export async function completeBaselineLearning(input: BaselineAction): Promise<B
 
 export async function updateSecurityEventStatus(eventId: string, status: SecurityEventStatus): Promise<void> {
   return invoke('set_security_event_status', { input: { eventId, status } })
+}
+
+export async function getDetectionsPage(input: DetectionQuery = {}): Promise<DetectionPage> {
+  if (!isTauri()) throw new Error('Detections are available only inside the EDY Sentinel desktop app.')
+  return invoke<DetectionPage>('get_detections_page', { input })
+}
+
+export async function getDetectionEvidence(input: DetectionEvidenceQuery): Promise<DetectionEvidencePage> {
+  if (!isTauri()) throw new Error('Detection evidence is available only inside the EDY Sentinel desktop app.')
+  return invoke<DetectionEvidencePage>('get_detection_evidence', { input })
+}
+
+export async function updateDetectionStatus(detectionId: string, status: DetectionStatus): Promise<void> {
+  return invoke('set_detection_status', { input: { detectionId, status } })
+}
+
+export async function getDetectionRules(): Promise<RuleDefinition[]> {
+  if (!isTauri()) throw new Error('Detection rules are available only inside the EDY Sentinel desktop app.')
+  return invoke<RuleDefinition[]>('get_detection_rules')
+}
+
+export async function setDetectionRuleEnabled(ruleId: string, enabled: boolean): Promise<void> {
+  return invoke('set_detection_rule_enabled', { input: { ruleId, enabled } })
+}
+
+export async function getSecurityScore(): Promise<SecurityScore> {
+  if (!isTauri()) throw new Error('Security Score is available only inside the EDY Sentinel desktop app.')
+  return invoke<SecurityScore>('get_security_score')
 }
