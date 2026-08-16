@@ -1,6 +1,6 @@
 # Security
 
-## Sprint 0 posture
+## Sprint 1 posture
 
 - Runs as the current user; administrator rights are not requested.
 - Uses a narrow Tauri capability set (`core:default`) and a restrictive content security policy.
@@ -9,6 +9,14 @@
 - Stores operational data only under the application-data directory.
 - Makes no outbound service call and includes no analytics.
 - Contains no required secret, API key, or credential.
+- Uses native IP Helper and Service Control Manager reads; it does not invoke
+  PowerShell or construct shell commands from UI input.
+- Runs live collection on Tauri blocking workers and treats process access denial as
+  a partial record rather than requesting elevation.
+- Performs executable signature verification with cache-only WinVerifyTrust and no
+  external reputation lookup.
+- Does not continuously hash executables and exposes no process, network, firewall,
+  or service-control command.
 
 ## Future integration credentials
 
@@ -16,7 +24,10 @@ Secrets must be stored in Windows Credential Manager. SQLite may contain only a 
 
 ## Data classification
 
-Snapshots contain local host, user, hardware, storage, and network configuration. Treat the database as sensitive endpoint metadata. Reports and exports need explicit consent and redaction in a future sprint.
+Snapshots contain local host, user, hardware, storage, process identity, executable
+paths, service configuration, and network endpoints. Treat the database as sensitive
+endpoint metadata. Process command lines are not persisted. Reports and exports need
+explicit consent and redaction in a future sprint.
 
 ## Reporting a vulnerability
 

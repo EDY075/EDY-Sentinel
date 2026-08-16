@@ -117,3 +117,115 @@ pub struct DatabaseStatus {
 pub struct ThemeInput {
     pub theme: String,
 }
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LiveTelemetrySnapshot {
+    pub collected_at: String,
+    pub processes: Vec<ProcessRecord>,
+    pub connections: Vec<ConnectionRecord>,
+    pub services: Vec<ServiceRecord>,
+    pub events: Vec<TelemetryEvent>,
+    pub collectors: Vec<CollectorHealth>,
+    pub issues: Vec<CollectionIssue>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProcessRecord {
+    pub key: String,
+    pub name: String,
+    pub pid: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parent_pid: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub executable_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command_line: Option<String>,
+    pub cpu_percent: Option<f32>,
+    pub memory_bytes: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start_time: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thread_count: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub architecture: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub publisher: Option<String>,
+    pub signature_status: String,
+    pub access_status: String,
+    pub first_seen: String,
+    pub last_seen: String,
+    pub observation_count: u64,
+    pub active: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectionRecord {
+    pub key: String,
+    pub protocol: String,
+    pub ip_version: String,
+    pub local_address: String,
+    pub local_port: u16,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remote_address: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remote_port: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pid: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub process_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub executable_path: Option<String>,
+    pub first_seen: String,
+    pub last_seen: String,
+    pub observation_count: u64,
+    pub active: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ServiceRecord {
+    pub key: String,
+    pub service_name: String,
+    pub display_name: String,
+    pub status: String,
+    pub startup_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub binary_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pid: Option<u32>,
+    pub first_seen: String,
+    pub last_seen: String,
+    pub observation_count: u64,
+    pub active: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TelemetryEvent {
+    pub id: String,
+    pub event_type: String,
+    pub subject_type: String,
+    pub subject_key: String,
+    pub message: String,
+    pub occurred_at: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CollectorHealth {
+    pub id: String,
+    pub status: String,
+    pub detail: String,
+    pub collected_at: String,
+}

@@ -1,6 +1,9 @@
 # EDY Sentinel
 
-EDY Sentinel is a local-first Windows security observability desktop. Sprint 0 establishes a production-shaped foundation: real Windows telemetry, typed Tauri IPC, versioned SQLite persistence, a responsive premium shell, and four persisted themes.
+EDY Sentinel is a local-first Windows security observability desktop. Sprint 1 adds
+live process, connection, and service observation to the production-shaped Tauri
+foundation, with typed IPC, versioned SQLite persistence, a responsive premium shell,
+and four persisted themes.
 
 No security score, alert, or operational metric is simulated. A missing collector is reported as unavailable; future engines remain explicitly not implemented.
 
@@ -9,7 +12,14 @@ No security score, alert, or operational metric is simulated. A missing collecto
 - Real hostname, user, Windows product/version/build, architecture, and uptime
 - Real CPU, GPU, memory, and volume details
 - Real Windows adapters, IPv4/IPv6 addresses, default gateway, and DNS resolvers
-- Local SQLite snapshots and settings with schema migrations
+- Real Windows processes with CPU/memory, ownership, path, command line when
+  accessible, thread count, architecture, executable metadata, and signature status
+- Real TCP/UDP IPv4/IPv6 bindings and connections correlated to processes by PID
+- Real read-only Windows service state, startup configuration, account, binary, and PID
+- Live pause/resume, factual change events, first/last seen tracking, and collector health
+- Virtualized process/connection/service tables with search, filters, sorting, keyboard
+  navigation, and detail drawers
+- Local SQLite snapshots, normalized observations, retention, and settings migrations
 - Sentinel Blue, Cyber Green, Terminal, and Spectrum themes
 - Compact/expanded navigation, command palette, toast, loading, empty, partial, and error states
 - Least-privilege Tauri application with a restrictive CSP and no external service dependency
@@ -41,8 +51,12 @@ The database is stored under the operating system application-data directory as 
 
 ## Privacy
 
-Telemetry never leaves the device in Sprint 0. The application has no API keys, analytics, cloud integration, scanner, or artificial intelligence module.
+Telemetry never leaves the device in Sprint 1. The application has no API keys,
+analytics, cloud integration, scanner, or artificial intelligence module. Process
+command lines are shown only when Windows exposes them and are not persisted.
 
 ## Scope boundary
 
-Threat intelligence services, advanced network scanning, CVE matching, AI, and a computed Security Score are intentionally outside Sprint 0. See [ROADMAP.md](ROADMAP.md).
+Threat intelligence services, geolocation/reputation, active response, advanced
+network scanning, CVE matching, AI, and a computed Security Score are intentionally
+outside Sprint 1. See [ROADMAP.md](ROADMAP.md).

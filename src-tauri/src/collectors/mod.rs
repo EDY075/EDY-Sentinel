@@ -1,5 +1,11 @@
 #[cfg(windows)]
+pub mod connections;
+#[cfg(windows)]
 mod network;
+#[cfg(windows)]
+pub mod processes;
+#[cfg(windows)]
+pub mod services;
 #[cfg(windows)]
 mod system;
 

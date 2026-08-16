@@ -1,7 +1,11 @@
 use crate::{
     collectors,
-    models::{Capability, CollectionIssue, DatabaseStatus, SystemOverview, ThemeInput},
+    models::{
+        Capability, CollectionIssue, DatabaseStatus, LiveTelemetrySnapshot, SystemOverview,
+        ThemeInput,
+    },
     persistence::Database,
+    telemetry::TelemetryEngine,
 };
 use tauri::State;
 
@@ -45,12 +49,48 @@ pub fn get_database_status(database: State<'_, Database>) -> Result<DatabaseStat
 }
 
 #[tauri::command]
+pub async fn get_live_telemetry(
+    engine: State<'_, TelemetryEngine>,
+    database: State<'_, Database>,
+) -> Result<LiveTelemetrySnapshot, String> {
+    let engine = engine.inner().clone();
+    let database = database.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut snapshot = engine.collect()?;
+        if database.persist_live_telemetry(&mut snapshot).is_err() {
+            snapshot.issues.push(CollectionIssue {
+                component: "persistence".into(),
+                message: "Live telemetry was collected, but local observation tracking could not be saved".into(),
+            });
+        }
+        Ok(snapshot)
+    })
+    .await
+    .map_err(|_| "Live telemetry task failed".to_string())?
+}
+
+#[tauri::command]
 pub fn get_capabilities() -> Vec<Capability> {
     vec![
         Capability {
             id: "system-collector".into(),
             status: "available".into(),
             detail: "Windows system telemetry".into(),
+        },
+        Capability {
+            id: "process-collector".into(),
+            status: "available".into(),
+            detail: "Native Windows process telemetry with cached executable metadata".into(),
+        },
+        Capability {
+            id: "connection-collector".into(),
+            status: "available".into(),
+            detail: "IP Helper TCP and UDP tables with PID correlation".into(),
+        },
+        Capability {
+            id: "service-collector".into(),
+            status: "available".into(),
+            detail: "Read-only Windows Service Control Manager telemetry".into(),
         },
         Capability {
             id: "network-collector".into(),

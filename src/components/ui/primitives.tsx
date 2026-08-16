@@ -64,10 +64,22 @@ export function Dialog({ open, title, children, onClose }: { open: boolean; titl
 }
 
 export function Drawer({ open, title, children, onClose }: { open: boolean; title: string; children: ReactNode; onClose: () => void }) {
+  const drawerRef = useRef<HTMLElement>(null)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+  const titleId = useId()
+  useEffect(() => {
+    if (!open) return
+    const previouslyFocused = document.activeElement as HTMLElement | null
+    drawerRef.current?.focus()
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onCloseRef.current() }
+    document.addEventListener('keydown', onKeyDown)
+    return () => { document.removeEventListener('keydown', onKeyDown); previouslyFocused?.focus() }
+  }, [open])
   if (!open) return null
   return (
-    <aside className="drawer" aria-label={title}>
-      <header><h2>{title}</h2><IconButton aria-label="Close drawer" onClick={onClose}><X size={18} /></IconButton></header>
+    <aside ref={drawerRef} tabIndex={-1} className="drawer" role="dialog" aria-modal="false" aria-labelledby={titleId}>
+      <header><h2 id={titleId}>{title}</h2><IconButton aria-label="Close drawer" onClick={onClose}><X size={18} /></IconButton></header>
       {children}
     </aside>
   )
