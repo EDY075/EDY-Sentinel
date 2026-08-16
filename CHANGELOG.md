@@ -6,6 +6,13 @@ All notable changes follow Keep a Changelog principles.
 
 ### Added
 
+- Complete English and Português (Brasil) localization across the shell, operational telemetry,
+  baseline, security events, detections, rules, Security Score, settings, errors, and accessibility
+- Runtime language switching with SQLite persistence, native Windows user-locale initialization,
+  English fallback, locale-aware pluralization, dates, times, relative time, numbers, and percentages
+- Sixteen domain namespaces with 969 parity-checked leaf keys per locale and focused i18n tests
+- Display-only localization for stable entity types, evidence/baseline field names, collector
+  sources, statuses, severities, confidence levels, and all six rule IDs
 - SQLite schema v5 constraints, non-cascading baseline references, bounded cursor pagination,
   entity history, and append-only factual-event transition provenance
 - Versioned Rust/TypeScript `RuleDefinition` contract without an evaluator or operational rules
@@ -21,6 +28,9 @@ All notable changes follow Keep a Changelog principles.
 
 ### Fixed
 
+- Remaining raw presentation labels for known entity types, evidence fields, collector sources,
+  operational states, connection states, service startup values, and score coverage components
+- Localized accessible names, drawer controls, table navigation, live regions, dialogs, and feedback
 - Host identity now resolves the actual Windows installation volume instead of assuming `C:\`
 - Sprint 2B handoff now lists the real Rust, TypeScript, IPC, context, page, drawer, and action APIs
 - Service PID is documented and implemented as runtime evidence rather than persistent identity
@@ -28,6 +38,8 @@ All notable changes follow Keep a Changelog principles.
 
 ### Security
 
+- Translation remains a presentation-only boundary: rule evaluation, Detection Engine inputs,
+  Security Score semantics, IDs, hashes, paths, IPs, processes, services, and evidence values are unchanged
 - Factual evidence history cannot be overwritten, baseline references cannot cascade-delete
   events, and event status/activity values are constrained at both Rust and SQLite boundaries
 - Detection analysis uses a transaction/checkpoint independent from baseline Error semantics;

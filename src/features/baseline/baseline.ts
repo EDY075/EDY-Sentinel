@@ -6,11 +6,11 @@ export const requiredConfirmation = (mode: BaselineActionMode) => mode === 'rese
 export const isBaselineConfirmationValid = (mode: BaselineActionMode, value: string) => value === requiredConfirmation(mode)
 
 export const baselinePresentation = (status: BaselineState) => ({
-  not_initialized: { label: 'Not initialized', tone: 'neutral' as const, detail: 'No behavior has been learned yet.' },
-  learning: { label: 'Learning', tone: 'warning' as const, detail: 'Real observations are being added without generating new-behavior events.' },
-  ready: { label: 'Ready', tone: 'good' as const, detail: 'New factual differences can create deduplicated security events.' },
-  stale: { label: 'Stale', tone: 'warning' as const, detail: 'The baseline has not received a recent successful observation.' },
-  error: { label: 'Error', tone: 'danger' as const, detail: 'The baseline could not be updated. Existing telemetry remains available.' },
+  not_initialized: { key: 'not_initialized', tone: 'neutral' as const },
+  learning: { key: 'learning', tone: 'warning' as const },
+  ready: { key: 'ready', tone: 'good' as const },
+  stale: { key: 'stale', tone: 'warning' as const },
+  error: { key: 'error', tone: 'danger' as const },
 })[status]
 
 export function learningElapsedSeconds(baseline: BaselineSummary, now = Date.now()) {
@@ -18,12 +18,13 @@ export function learningElapsedSeconds(baseline: BaselineSummary, now = Date.now
   return Math.max(0, Math.floor((now - new Date(baseline.learningStartedAt).getTime()) / 1000))
 }
 
-export function formatLearningDuration(seconds: number) {
-  if (seconds < 60) return `${seconds}s`
+export function formatLearningDuration(seconds: number, locale?: string) {
+  const number = new Intl.NumberFormat(locale ?? 'en-US')
+  if (seconds < 60) return `${number.format(seconds)}s`
   const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes}m`
+  if (minutes < 60) return `${number.format(minutes)}m`
   const hours = Math.floor(minutes / 60)
   const remainingMinutes = minutes % 60
-  if (hours < 24) return `${hours}h ${remainingMinutes}m`
-  return `${Math.floor(hours / 24)}d ${hours % 24}h`
+  if (hours < 24) return `${number.format(hours)}h ${number.format(remainingMinutes)}m`
+  return `${number.format(Math.floor(hours / 24))}d ${number.format(hours % 24)}h`
 }

@@ -1,0 +1,14 @@
+export default {
+  panel: { title: 'Security Score', subtitle: 'Observed posture under current coverage', ariaLabel: 'Security Score {{score}} out of 100. View breakdown.', viewBreakdown: 'View score breakdown', baseline: 'Baseline {{status}}', active_one: '{{formattedCount}} active', active_other: '{{formattedCount}} active' },
+  state: { available: 'Available', limited: 'Limited coverage', unavailable: 'Score unavailable' },
+  labels: { excellent: 'Excellent', good: 'Good', attention: 'Attention', elevatedRisk: 'Elevated Risk', observedPosture: 'Observed posture' },
+  availability: {
+    noScoreTitle: 'Security Score unavailable', noScoreDetail: 'Security analysis has not returned a score state.', limitedDetail: 'Minimum score coverage is not currently available.', unavailableDetail: 'Required baseline, collection or detection data is unavailable.', invalidTitle: 'Security Score unavailable', invalidDetail: 'The engine returned an invalid score value.', activeDetections_one: '{{formattedCount}} active detection under current coverage', activeDetections_other: '{{formattedCount}} active detections under current coverage',
+  },
+  reasons: { noBaseline: 'Score unavailable — no behavioral baseline exists', learning: 'Score unavailable — baseline still learning', stale: 'Score unavailable — baseline coverage is stale', error: 'Score unavailable — baseline is in Error', notReady: 'Score unavailable — baseline is not ready', noRules: 'Score unavailable — no detection rules are enabled', incompleteCoverage: 'Score unavailable — required collector coverage is incomplete' },
+  drawer: { title: 'Security Score breakdown', score: 'Score', why: 'Why this score?', baseScore: 'Base score', baseScoreDetail: 'Starting point before active detection penalties', confidence: '{{confidence}} confidence', finalScore: 'Final score', formulaShort: 'Formula v{{version}}', coverage: 'Coverage', detectionInput: 'Detection input', activeDetections: 'Active detections', highestSeverity: 'Highest severity', none: 'None', formula: 'Formula', formulaVersion: 'Formula version', calculated: 'Calculated', notCalculated: 'Not calculated', disclaimer: 'This is an observed posture score under current Sentinel coverage, not a percentage guarantee of security.' },
+  coverageStatus: { healthy: 'Healthy', available: 'Available', degraded: 'Degraded', failed: 'Failed', unavailable: 'Unavailable' },
+  coverageDetail: { healthy: 'Collection is available.', available: 'Collection is available.', degraded: 'Collection is partially available.', failed: 'Collection is unavailable.', unavailable: 'Coverage is unavailable.' },
+  coverageComponent: { system: 'System', processes: 'Processes', connections: 'Connections', services: 'Services', 'detection-engine': 'Detection Engine' },
+  baselineStatus: { not_initialized: 'not initialized', learning: 'learning', ready: 'ready', stale: 'stale', error: 'error' },
+} as const

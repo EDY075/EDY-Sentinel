@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import { RefreshCw, Settings2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { getDetectionRules, setDetectionRuleEnabled } from '../../lib/tauri'
 import type { SecurityEventStatus } from '../../types/baseline'
 import type { DetectionEvidenceRecord, DetectionStatus } from '../../types/detection'
@@ -21,6 +22,7 @@ export function SecurityWorkspace({ section, revision, error, onSectionChange, o
   onEventStatusChange: (eventId: string, status: SecurityEventStatus) => Promise<void>
   onDetectionStatusChange: (detectionId: string, status: DetectionStatus) => Promise<void>
 }) {
+  const { t } = useTranslation('security')
   const [rules, setRules] = useState<RuleDefinition[]>([])
   const [rulesLoading, setRulesLoading] = useState(true)
   const [rulesError, setRulesError] = useState<string>()
@@ -62,14 +64,14 @@ export function SecurityWorkspace({ section, revision, error, onSectionChange, o
 
   return <div className="security-workspace">
     <header className="security-workspace__nav">
-      <div className="security-tabs" role="tablist" aria-label="Security analysis views">
-        <button type="button" role="tab" aria-selected={section === 'detections'} tabIndex={section === 'detections' ? 0 : -1} onKeyDown={onTabKeyDown} onClick={() => onSectionChange('detections')}>Detections</button>
-        <button type="button" role="tab" aria-selected={section === 'events'} tabIndex={section === 'events' ? 0 : -1} onKeyDown={onTabKeyDown} onClick={() => onSectionChange('events')}>Events</button>
+      <div className="security-tabs" role="tablist" aria-label={t('workspace.ariaLabel')}>
+        <button type="button" role="tab" aria-selected={section === 'detections'} tabIndex={section === 'detections' ? 0 : -1} onKeyDown={onTabKeyDown} onClick={() => onSectionChange('detections')}>{t('workspace.detections')}</button>
+        <button type="button" role="tab" aria-selected={section === 'events'} tabIndex={section === 'events' ? 0 : -1} onKeyDown={onTabKeyDown} onClick={() => onSectionChange('events')}>{t('workspace.events')}</button>
       </div>
-      <div><button type="button" className="button" onClick={() => void onRefresh()}><RefreshCw size={14} /> Refresh analysis</button><button type="button" className="button" onClick={() => onSectionChange('rules')}><Settings2 size={14} /> Detection rules</button></div>
+      <div><button type="button" className="button" onClick={() => void onRefresh()}><RefreshCw size={14} /> {t('workspace.refresh')}</button><button type="button" className="button" onClick={() => onSectionChange('rules')}><Settings2 size={14} /> {t('workspace.rules')}</button></div>
     </header>
-    {error && <div className="security-boundary-warning" role="status">Some security analysis state is unavailable: {error}</div>}
-    <div role="tabpanel" aria-label={section === 'detections' ? 'Detections' : 'Factual security events'}>
+    {error && <div className="security-boundary-warning" role="status">{t('workspace.warning')}</div>}
+    <div role="tabpanel" aria-label={section === 'detections' ? t('workspace.detectionsPanel') : t('workspace.eventsPanel')}>
       {section === 'detections' ? <DetectionsView revision={revision} rules={rules} onStatusChange={onDetectionStatusChange} onOpenSourceEvent={openSourceEvent} /> : <SecurityEventsView revision={revision} requestedEvent={requestedEvent} onStatusChange={onEventStatusChange} />}
     </div>
   </div>

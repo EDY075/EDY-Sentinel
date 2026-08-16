@@ -128,6 +128,12 @@ pub struct ThemeInput {
     pub theme: String,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LanguageInput {
+    pub language: String,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LiveTelemetrySnapshot {

@@ -6,9 +6,9 @@ const summary = (status: BaselineSummary['status'], started = '2026-08-16T12:00:
 
 describe('behavioral baseline presentation', () => {
   it('keeps every backend state explicit and does not imply a score', () => {
-    expect(baselinePresentation('learning').label).toBe('Learning')
-    expect(baselinePresentation('ready').detail).toContain('factual')
-    expect(baselinePresentation('stale').label).toBe('Stale')
+    expect(baselinePresentation('learning').key).toBe('learning')
+    expect(baselinePresentation('ready').key).toBe('ready')
+    expect(baselinePresentation('stale').key).toBe('stale')
     expect(baselinePresentation('error').tone).toBe('danger')
   })
 

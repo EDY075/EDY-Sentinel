@@ -1,6 +1,8 @@
+import { createInstance } from 'i18next'
 import { describe, expect, it } from 'vitest'
+import eventsPtBR from '../../i18n/locales/pt-BR/events'
 import type { SecurityEvent } from '../../types/baseline'
-import { eventDetailSections, eventStatusLabel, eventTypeLabel, evidenceEntries, filterSecurityEvents } from './events'
+import { eventBaselineFieldLabel, eventDetailSections, eventEntityTypeLabel, eventEvidenceFieldLabel, eventSourceLabel, eventStatusLabel, eventTypeLabel, evidenceEntries, filterSecurityEvents } from './events'
 
 const event = (overrides: Partial<SecurityEvent> = {}): SecurityEvent => ({ eventId: 'security-1', eventType: 'executable_first_seen', entityType: 'executable', entityKey: 'abc', title: 'New executable observed', timestamp: '2026-08-16T12:00:00Z', firstSeen: '2026-08-16T12:00:00Z', lastSeen: '2026-08-16T12:00:00Z', evidence: { process: 'sample.exe', path: 'C:\\sample.exe' }, baselineContext: { comparison: 'not previously observed' }, source: 'processes', baselineId: 'baseline-1', confidence: 'high', status: 'new', observationCount: 1, conditionActive: true, schemaVersion: 1, ...overrides })
 
@@ -8,6 +10,17 @@ describe('security event foundation UI models', () => {
   it('formats factual event and status labels without severity', () => {
     expect(eventTypeLabel('parent_child_first_seen')).toBe('Parent Child First Seen')
     expect(eventStatusLabel('acknowledged')).toBe('Acknowledged')
+  })
+
+  it('localizes known display labels while preserving unknown technical values', async () => {
+    const instance = createInstance()
+    await instance.init({ lng: 'pt-BR', resources: { 'pt-BR': { events: eventsPtBR } }, defaultNS: 'events' })
+    const t = instance.getFixedT('pt-BR', 'events')
+    expect(eventEntityTypeLabel('process', t)).toBe('Processo')
+    expect(eventSourceLabel('processes', t)).toBe('Processos')
+    expect(eventEvidenceFieldLabel('signatureStatus', t)).toBe('Status da assinatura')
+    expect(eventBaselineFieldLabel('comparison', t)).toBe('Comparação')
+    expect(eventEntityTypeLabel('future_entity', t)).toBe('future_entity')
   })
 
   it('filters the security event table by status and evidence', () => {

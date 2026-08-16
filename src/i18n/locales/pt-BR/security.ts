@@ -1,0 +1,4 @@
+export default {
+  workspace: { ariaLabel: 'Visualizações da análise de segurança', detections: 'Detecções', events: 'Eventos', refresh: 'Atualizar análise', rules: 'Regras de detecção', warning: 'Parte do estado da análise de segurança está indisponível. Tente atualizar a análise.', detectionsPanel: 'Detecções', eventsPanel: 'Eventos factuais de segurança' },
+  pagination: { ariaLabel: 'Paginação de {{noun}}', status: 'Página {{page}} · {{count}} {{noun}}', refresh: 'Atualizar {{noun}}', previous: 'Anterior', next: 'Próxima', nouns: { detections_one: 'detecção', detections_other: 'detecções', events_one: 'evento', events_other: 'eventos', evidence_one: 'registro de evidência', evidence_other: 'registros de evidência', history_one: 'registro do histórico', history_other: 'registros do histórico' } },
+} as const

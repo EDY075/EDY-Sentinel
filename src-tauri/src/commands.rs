@@ -12,9 +12,9 @@ use crate::{
     },
     models::{
         BaselineActionInput, BaselineSummary, Capability, CollectionIssue, CollectorHealth,
-        CollectorStatus, DatabaseStatus, DetectionStatusInput, LiveTelemetrySnapshot,
-        RuleEnabledInput, ScoreCoverage, SecurityEventRecord, SecurityEventStatusInput,
-        SecurityScore, SystemOverview, ThemeInput,
+        CollectorStatus, DatabaseStatus, DetectionStatusInput, LanguageInput,
+        LiveTelemetrySnapshot, RuleEnabledInput, ScoreCoverage, SecurityEventRecord,
+        SecurityEventStatusInput, SecurityScore, SystemOverview, ThemeInput,
     },
     persistence::Database,
     rules::{self, RuleDefinition},
@@ -24,6 +24,24 @@ use crate::{
 use tauri::State;
 
 const THEMES: [&str; 4] = ["sentinel-blue", "cyber-green", "terminal", "spectrum"];
+const LANGUAGES: [&str; 2] = ["pt-BR", "en"];
+
+#[tauri::command]
+pub fn get_system_locale() -> Result<String, String> {
+    const LOCALE_NAME_CAPACITY: usize = 85;
+    let mut locale_name = [0_u16; LOCALE_NAME_CAPACITY];
+    let length = unsafe {
+        windows_sys::Win32::Globalization::GetUserDefaultLocaleName(
+            locale_name.as_mut_ptr(),
+            locale_name.len() as i32,
+        )
+    };
+    if length == 0 {
+        return Err("Unable to read the Windows user locale".into());
+    }
+    String::from_utf16(&locale_name[..length.saturating_sub(1) as usize])
+        .map_err(|_| "Windows returned an invalid user locale".into())
+}
 
 #[tauri::command]
 pub async fn get_system_overview(
@@ -69,6 +87,19 @@ pub fn set_theme(input: ThemeInput, database: State<'_, Database>) -> Result<(),
         return Err("Unsupported theme".into());
     }
     database.set_theme(&input.theme)
+}
+
+#[tauri::command]
+pub fn get_language(database: State<'_, Database>) -> Result<Option<String>, String> {
+    database.get_language()
+}
+
+#[tauri::command]
+pub fn set_language(input: LanguageInput, database: State<'_, Database>) -> Result<(), String> {
+    if !LANGUAGES.contains(&input.language.as_str()) {
+        return Err("Unsupported language".into());
+    }
+    database.set_language(&input.language)
 }
 
 #[tauri::command]
@@ -368,12 +399,25 @@ pub fn get_capabilities() -> Vec<Capability> {
 
 #[cfg(test)]
 mod tests {
-    use super::THEMES;
+    use super::{get_system_locale, LANGUAGES, THEMES};
 
     #[test]
     fn only_documented_themes_are_accepted() {
         assert_eq!(THEMES.len(), 4);
         assert!(THEMES.contains(&"spectrum"));
         assert!(!THEMES.contains(&"neon-gamer"));
+    }
+
+    #[test]
+    fn only_supported_interface_languages_are_accepted() {
+        assert_eq!(LANGUAGES, ["pt-BR", "en"]);
+        assert!(!LANGUAGES.contains(&"pt-PT"));
+    }
+
+    #[test]
+    fn windows_user_locale_is_available_to_the_i18n_bootstrap() {
+        let locale = get_system_locale().expect("Windows user locale should be readable");
+        assert!(!locale.trim().is_empty());
+        assert!(!locale.contains('\0'));
     }
 }

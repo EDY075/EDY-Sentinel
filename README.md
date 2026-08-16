@@ -1,12 +1,13 @@
 # EDY Sentinel
 
-EDY Sentinel is a local-first Windows security observability desktop. Sprint 2A adds a
-versioned behavioral baseline and factual security-event foundation over the hardened
-live process, connection, service, and network telemetry foundation, with
-explicit accuracy semantics, typed IPC, versioned SQLite persistence, a responsive
-premium shell, and four persisted themes.
+EDY Sentinel is a local-first Windows security observability desktop. Through Sprint 2C,
+it combines hardened live endpoint telemetry, a versioned behavioral baseline, factual
+security events, six explainable detection rules, Security Score v1, and a fully localized
+English/Português (Brasil) interface. The application retains explicit accuracy semantics,
+typed IPC, versioned SQLite persistence, a responsive premium shell, and four persisted themes.
 
-No security score, alert, or operational metric is simulated. A missing collector is reported as unavailable; future engines remain explicitly not implemented.
+No security score, detection, or operational metric is simulated. A missing collector is
+reported as unavailable, and every detection remains tied to factual local evidence.
 
 ## Current capabilities
 
@@ -25,9 +26,12 @@ No security score, alert, or operational metric is simulated. A missing collecto
 - Local Learning/Ready behavioral baselines for executables, process relationships,
   destinations, services, routes, gateways, DNS, and interface identity
 - Evidence-backed Security Events with no fabricated severity or threat classification
+- Six immutable v1 detection rules and an explainable, coverage-gated Security Score
 - Virtualized process/connection/service tables with search, filters, sorting, and keyboard
   navigation; process and connection views include detail drawers
 - Local SQLite snapshots, normalized observations, retention, and settings migrations
+- Complete `en` and `pt-BR` interface catalogs with runtime switching, persisted preference,
+  Windows-locale initialization, English fallback, pluralization, and locale-aware dates/numbers
 - Sentinel Blue, Cyber Green, Terminal, and Spectrum themes
 - Compact/expanded navigation, command palette, toast, loading, empty, partial, and error states
 - Least-privilege Tauri application with a restrictive CSP and no external service dependency
@@ -55,11 +59,15 @@ pnpm check:rust
 pnpm tauri build
 ```
 
-The database is stored under the operating system application-data directory as `sentinel.db`; it is not created in the repository. See [DEVELOPMENT.md](DEVELOPMENT.md) for the complete workflow and [ARCHITECTURE.md](ARCHITECTURE.md) for module boundaries.
+The database is stored under the operating system application-data directory as `sentinel.db`;
+it is not created in the repository. See [DEVELOPMENT.md](DEVELOPMENT.md) for the complete
+workflow, [ARCHITECTURE.md](ARCHITECTURE.md) for module boundaries, and
+[LOCALIZATION.md](LOCALIZATION.md) for the language contract.
 
 ## Privacy
 
-Telemetry and behavioral baselines never leave the device in Sprint 2A. The application has no API keys,
+Telemetry, behavioral baselines, detections, and language preferences never leave the device
+through Sprint 2C. The application has no API keys,
 analytics, cloud integration, scanner, or artificial intelligence module. Process
 command lines are shown only when Windows exposes them and are not persisted.
 
@@ -80,6 +88,6 @@ from that short baseline are not suitable for production rule calibration.
 
 ## Scope boundary
 
-Threat intelligence services, geolocation/reputation, active response, advanced
-network scanning, CVE matching, AI, and a computed Security Score are intentionally
-outside Sprint 2A. See [ROADMAP.md](ROADMAP.md).
+Threat intelligence services, geolocation/reputation, active response, advanced network
+scanning, CVE matching, AI, and native Windows notifications remain intentionally outside
+Sprint 2C. See [ROADMAP.md](ROADMAP.md).

@@ -1,13 +1,15 @@
 import { useEffect, useId, useRef } from 'react'
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react'
 import { X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 export function Badge({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'accent' | 'good' | 'warning' | 'danger' }) {
   return <span className={`badge badge--${tone}`}>{children}</span>
 }
 
 export function StatusDot({ status = 'online' }: { status?: 'online' | 'partial' | 'offline' }) {
-  return <span className={`status-dot status-dot--${status}`} aria-label={status} />
+  const { t } = useTranslation('common')
+  return <span className={`status-dot status-dot--${status}`} aria-label={t(`status.${status}`)} />
 }
 
 export function IconButton({ className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement>) {
@@ -29,6 +31,7 @@ export function EmptyState({ title, description }: { title: string; description:
 }
 
 export function Dialog({ open, title, children, onClose }: { open: boolean; title: string; children: ReactNode; onClose: () => void }) {
+  const { t } = useTranslation('common')
   const dialogRef = useRef<HTMLElement>(null)
   const titleId = useId()
   useEffect(() => {
@@ -55,7 +58,7 @@ export function Dialog({ open, title, children, onClose }: { open: boolean; titl
       <section ref={dialogRef} tabIndex={-1} className="dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <header>
           <h2 id={titleId}>{title}</h2>
-          <IconButton aria-label="Close dialog" onClick={onClose}><X size={18} /></IconButton>
+          <IconButton aria-label={t('accessibility.closeDialog')} onClick={onClose}><X size={18} /></IconButton>
         </header>
         {children}
       </section>
@@ -64,6 +67,7 @@ export function Dialog({ open, title, children, onClose }: { open: boolean; titl
 }
 
 export function Drawer({ open, title, children, onClose, wide = false }: { open: boolean; title: string; children: ReactNode; onClose: () => void; wide?: boolean }) {
+  const { t } = useTranslation('common')
   const drawerRef = useRef<HTMLElement>(null)
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
@@ -79,7 +83,7 @@ export function Drawer({ open, title, children, onClose, wide = false }: { open:
   if (!open) return null
   return (
     <aside ref={drawerRef} tabIndex={-1} className={`drawer ${wide ? 'drawer--wide' : ''}`} role="dialog" aria-modal="false" aria-labelledby={titleId}>
-      <header><h2 id={titleId}>{title}</h2><IconButton aria-label="Close drawer" onClick={onClose}><X size={18} /></IconButton></header>
+      <header><h2 id={titleId}>{title}</h2><IconButton aria-label={t('accessibility.closeDrawer')} onClick={onClose}><X size={18} /></IconButton></header>
       {children}
     </aside>
   )
@@ -91,10 +95,11 @@ export function Tooltip({ label, children }: { label: string; children: ReactNod
 }
 
 export function Sparkline({ points, ...props }: { points: number[] } & HTMLAttributes<SVGElement>) {
+  const { t } = useTranslation('common')
   if (points.length < 2) return null
   const max = Math.max(...points)
   const min = Math.min(...points)
   const range = Math.max(max - min, 1)
   const path = points.map((point, index) => `${(index / (points.length - 1)) * 100},${32 - ((point - min) / range) * 28}`).join(' ')
-  return <svg viewBox="0 0 100 36" role="img" aria-label="Metric trend" {...props}><polyline points={path} fill="none" stroke="currentColor" strokeWidth="2" vectorEffect="non-scaling-stroke" /></svg>
+  return <svg viewBox="0 0 100 36" role="img" aria-label={t('accessibility.metricTrend')} {...props}><polyline points={path} fill="none" stroke="currentColor" strokeWidth="2" vectorEffect="non-scaling-stroke" /></svg>
 }

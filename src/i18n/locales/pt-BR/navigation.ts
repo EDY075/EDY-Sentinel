@@ -1,0 +1,16 @@
+export const navigation = {
+  primaryLabel: 'Navegação principal',
+  workspace: 'Área de trabalho',
+  overview: 'Visão geral',
+  system: 'Sistema',
+  network: 'Rede',
+  activity: 'Atividade',
+  inventory: 'Inventário',
+  events: 'Eventos',
+  helpCenter: 'Central de ajuda',
+  settings: 'Configurações',
+  planned: 'Planejado para uma versão futura',
+  expandSidebar: 'Expandir barra lateral',
+  collapseSidebar: 'Recolher barra lateral',
+  closeNavigation: 'Fechar navegação',
+} as const

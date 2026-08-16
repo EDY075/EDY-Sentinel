@@ -5,8 +5,9 @@ import type { BaselineAction, BaselineSummary, SecurityEvent, SecurityEventHisto
 import type { DetectionEvidencePage, DetectionEvidenceQuery, DetectionPage, DetectionQuery, DetectionStatus } from '../types/detection'
 import type { SecurityScore } from '../types/score'
 import type { RuleDefinition } from '../types/rules'
+import { LANGUAGE_STORAGE_KEY, normalizeLanguage, type SupportedLanguage } from '../i18n/language'
 
-export const isTauri = () => '__TAURI_INTERNALS__' in window
+export const isTauri = () => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 
 export async function getSystemOverview(): Promise<SystemOverview> {
   if (!isTauri()) {
@@ -27,6 +28,28 @@ export async function persistTheme(theme: ThemeName): Promise<void> {
   if (isTauri()) {
     await invoke('set_theme', { input: { theme } })
   }
+}
+
+export async function loadLanguage(): Promise<SupportedLanguage | null> {
+  if (typeof window === 'undefined') return null
+  const persisted = isTauri()
+    ? await invoke<string | null>('get_language')
+    : window.localStorage.getItem(LANGUAGE_STORAGE_KEY)
+  return normalizeLanguage(persisted)
+}
+
+export async function loadSystemLocale(): Promise<string | null> {
+  if (!isTauri()) return null
+  const locale = await invoke<string>('get_system_locale')
+  return locale.trim() || null
+}
+
+export async function persistLanguage(language: SupportedLanguage): Promise<void> {
+  if (isTauri()) {
+    await invoke('set_language', { input: { language } })
+    return
+  }
+  if (typeof window !== 'undefined') window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language)
 }
 
 export async function getDatabaseStatus(): Promise<DatabaseStatus | null> {

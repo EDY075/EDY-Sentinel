@@ -27,7 +27,7 @@ interface TelemetryContextValue {
   securityScore: SecurityScore | null
   securityError: string | null
   securityRevision: number
-  securityNotice: { id: number; message: string } | null
+  securityNotice: { id: number; count: number } | null
   setLive: (live: boolean) => void
   refresh: () => Promise<void>
   refreshSecurity: () => Promise<void>
@@ -55,7 +55,7 @@ export function TelemetryProvider({ children }: { children: ReactNode }) {
   const [securityScore, setSecurityScore] = useState<SecurityScore | null>(null)
   const [securityError, setSecurityError] = useState<string | null>(null)
   const [securityRevision, setSecurityRevision] = useState(0)
-  const [securityNotice, setSecurityNotice] = useState<{ id: number; message: string } | null>(null)
+  const [securityNotice, setSecurityNotice] = useState<{ id: number; count: number } | null>(null)
   const [systemFailure, setSystemFailure] = useState<string>()
   const [liveFailure, setLiveFailure] = useState<string>()
   const collecting = useRef(false)
@@ -84,7 +84,7 @@ export function TelemetryProvider({ children }: { children: ReactNode }) {
         detectionsResult.value.items.forEach(({ detectionId }) => observedDetectionIds.current.add(detectionId))
         if (seededDetections.current && unseen.length) {
           noticeSequence.current += 1
-          setSecurityNotice({ id: noticeSequence.current, message: unseen.length === 1 ? 'New detection ready for review' : `${unseen.length} new detections ready for review` })
+          setSecurityNotice({ id: noticeSequence.current, count: unseen.length })
         }
         seededDetections.current = true
       }

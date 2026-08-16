@@ -1,22 +1,20 @@
 import { useCallback, useMemo, useState } from 'react'
 import { Fingerprint, ShieldAlert } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Badge } from '../../components/ui/primitives'
 import { OperationalTable } from '../../components/ui/OperationalTable'
 import type { OperationalColumn } from '../../components/ui/OperationalTable'
+import { formatDateTime, formatNumber } from '../../i18n'
 import { getDetectionsPage } from '../../lib/tauri'
 import type { Detection, DetectionCursor, DetectionEvidenceRecord, DetectionSeverity, DetectionStatus } from '../../types/detection'
 import type { RuleDefinition } from '../../types/rules'
 import { CursorPagination } from '../security/CursorPagination'
 import { useCursorPager } from '../security/useCursorPager'
 import { useDebouncedValue } from '../security/useDebouncedValue'
-import { formatDateTime } from '../telemetry/format'
-import { confidenceLabel, confidenceTone, detectionStatusLabel, severityLabel, severityTone } from './detectionPresentation'
+import { confidenceLabel, confidenceTone, detectionStatusLabel, localizedDetectionField, localizedEntityType, severityLabel, severityTone } from './detectionPresentation'
 import { DetectionDrawer } from './DetectionDrawer'
 
-const severities: Array<{ value: 'all' | DetectionSeverity; label: string }> = [
-  { value: 'all', label: 'All severity' }, { value: 'informational', label: 'Informational' }, { value: 'low', label: 'Low' }, { value: 'medium', label: 'Medium' }, { value: 'high', label: 'High' }, { value: 'critical', label: 'Critical' },
-]
-
+const severities: Array<'all' | DetectionSeverity> = ['all', 'informational', 'low', 'medium', 'high', 'critical']
 const statuses: Array<'all' | DetectionStatus> = ['all', 'new', 'investigating', 'acknowledged', 'resolved', 'ignored']
 const toRfc3339 = (value: string) => value ? new Date(value).toISOString() : undefined
 
@@ -26,6 +24,8 @@ export function DetectionsView({ revision, rules, onStatusChange, onOpenSourceEv
   onStatusChange: (detectionId: string, status: DetectionStatus) => Promise<void>
   onOpenSourceEvent: (evidence: DetectionEvidenceRecord) => void
 }) {
+  const { t } = useTranslation('detections')
+  const { t: tRules } = useTranslation('rules')
   const [severity, setSeverity] = useState<'all' | DetectionSeverity>('all')
   const [status, setStatus] = useState<'all' | DetectionStatus>('all')
   const [category, setCategory] = useState('')
@@ -55,26 +55,26 @@ export function DetectionsView({ revision, rules, onStatusChange, onOpenSourceEv
   const selected = pager.items.find(({ detectionId }) => detectionId === selectedKey) ?? null
   const selectedRule = selected ? rules.find(({ ruleId: id, version }) => id === selected.ruleId && version === selected.ruleVersion) : undefined
   const columns: OperationalColumn<Detection>[] = useMemo(() => [
-    { key: 'lastDetectedAt', label: 'Time', width: '155px', render: (row) => <span className="metric-cell">{formatDateTime(row.lastDetectedAt)}</span> },
-    { key: 'title', label: 'Detection', width: 'minmax(250px, 1.8fr)', render: (row) => <span className="cell-primary"><ShieldAlert size={14} /><span><strong>{row.title}</strong><small>{row.ruleId} v{row.ruleVersion} · {rules.find((rule) => rule.ruleId === row.ruleId && rule.version === row.ruleVersion)?.category ?? 'category unavailable'}</small></span></span> },
-    { key: 'entityKey', label: 'Entity', width: 'minmax(170px, 1.15fr)', priority: 'secondary', render: (row) => <span className="cell-primary"><Fingerprint size={14} /><span><strong>{row.entityType}</strong><small>{row.entityKey}</small></span></span> },
-    { key: 'severity', label: 'Severity', width: '112px', render: (row) => <Badge tone={severityTone(row.severity)}>{severityLabel(row.severity)}</Badge> },
-    { key: 'confidence', label: 'Confidence', width: '108px', priority: 'tertiary', render: (row) => <Badge tone={confidenceTone(row.confidence)}>{confidenceLabel(row.confidence)}</Badge> },
-    { key: 'status', label: 'Status', width: '150px', render: (row) => <span className="detection-status-cell"><Badge>{detectionStatusLabel(row.status)}</Badge>{!row.conditionActive && <small>Condition inactive</small>}</span> },
-  ], [rules])
+    { key: 'lastDetectedAt', label: t('table.time'), width: '155px', render: (row) => <span className="metric-cell">{formatDateTime(row.lastDetectedAt)}</span> },
+    { key: 'title', label: t('table.detection'), width: 'minmax(250px, 1.8fr)', render: (row) => { const definition = rules.find((rule) => rule.ruleId === row.ruleId && rule.version === row.ruleVersion); return <span className="cell-primary"><ShieldAlert size={14} /><span><strong>{localizedDetectionField(row.ruleId, 'title', row.title, t)}</strong><small>{row.ruleId} v{formatNumber(row.ruleVersion)} · {definition ? tRules(`categories.${definition.category}`, { defaultValue: definition.category }) : t('table.categoryUnavailable')}</small></span></span> } },
+    { key: 'entityKey', label: t('table.entity'), width: 'minmax(170px, 1.15fr)', priority: 'secondary', render: (row) => <span className="cell-primary"><Fingerprint size={14} /><span><strong>{localizedEntityType(row.entityType, t)}</strong><small>{row.entityKey}</small></span></span> },
+    { key: 'severity', label: t('table.severity'), width: '112px', render: (row) => <Badge tone={severityTone(row.severity)}>{severityLabel(row.severity, t)}</Badge> },
+    { key: 'confidence', label: t('table.confidence'), width: '108px', priority: 'tertiary', render: (row) => <Badge tone={confidenceTone(row.confidence)}>{confidenceLabel(row.confidence, t)}</Badge> },
+    { key: 'status', label: t('table.status'), width: '150px', render: (row) => <span className="detection-status-cell"><Badge>{detectionStatusLabel(row.status, t)}</Badge>{!row.conditionActive && <small>{t('table.conditionInactive')}</small>}</span> },
+  ], [rules, t, tRules])
 
   return <>
     <section className="operational-panel">
       <div className="security-filter-bar security-filter-bar--detections">
-        <div className="filter-chips" aria-label="Detection severity filters">{severities.map((item) => <button type="button" key={item.value} data-active={severity === item.value || undefined} aria-pressed={severity === item.value} onClick={() => setSeverity(item.value)}>{item.label}</button>)}</div>
-        <label><span>Status</span><select value={status} onChange={(event) => setStatus(event.target.value as 'all' | DetectionStatus)}>{statuses.map((item) => <option value={item} key={item}>{item === 'all' ? 'All status' : detectionStatusLabel(item)}</option>)}</select></label>
-        <label><span>Category</span><select value={category} onChange={(event) => setCategory(event.target.value)}><option value="">All categories</option>{categories.map((item) => <option key={item}>{item}</option>)}</select></label>
-        <label><span>Rule</span><select value={ruleId} onChange={(event) => setRuleId(event.target.value)}><option value="">All rules</option>{rules.map((rule) => <option value={rule.ruleId} key={`${rule.ruleId}-${rule.version}`}>{rule.ruleId}</option>)}</select></label>
-        <details className="advanced-security-filters"><summary>More filters</summary><div><label><span>Entity type</span><input value={entityType} onChange={(event) => setEntityType(event.target.value)} placeholder="Exact type" /></label><label><span>Entity key</span><input value={entityKey} onChange={(event) => setEntityKey(event.target.value)} placeholder="Exact key" /></label><label><span>From</span><input type="datetime-local" value={from} onChange={(event) => setFrom(event.target.value)} /></label><label><span>To</span><input type="datetime-local" value={to} onChange={(event) => setTo(event.target.value)} /></label></div></details>
+        <div className="filter-chips" aria-label={t('filters.ariaLabel')}>{severities.map((item) => <button type="button" key={item} data-active={severity === item || undefined} aria-pressed={severity === item} onClick={() => setSeverity(item)}>{item === 'all' ? t('filters.allSeverity') : severityLabel(item, t)}</button>)}</div>
+        <label><span>{t('filters.status')}</span><select value={status} onChange={(event) => setStatus(event.target.value as 'all' | DetectionStatus)}>{statuses.map((item) => <option value={item} key={item}>{item === 'all' ? t('filters.allStatus') : detectionStatusLabel(item, t)}</option>)}</select></label>
+        <label><span>{t('filters.category')}</span><select value={category} onChange={(event) => setCategory(event.target.value)}><option value="">{t('filters.allCategories')}</option>{categories.map((item) => <option key={item} value={item}>{tRules(`categories.${item}`, { defaultValue: item })}</option>)}</select></label>
+        <label><span>{t('filters.rule')}</span><select value={ruleId} onChange={(event) => setRuleId(event.target.value)}><option value="">{t('filters.allRules')}</option>{rules.map((rule) => <option value={rule.ruleId} key={`${rule.ruleId}-${rule.version}`}>{rule.ruleId}</option>)}</select></label>
+        <details className="advanced-security-filters"><summary>{t('filters.more')}</summary><div><label><span>{t('filters.entityType')}</span><input value={entityType} onChange={(event) => setEntityType(event.target.value)} placeholder={t('filters.exactType')} /></label><label><span>{t('filters.entityKey')}</span><input value={entityKey} onChange={(event) => setEntityKey(event.target.value)} placeholder={t('filters.exactKey')} /></label><label><span>{t('filters.from')}</span><input type="datetime-local" value={from} onChange={(event) => setFrom(event.target.value)} /></label><label><span>{t('filters.to')}</span><input type="datetime-local" value={to} onChange={(event) => setTo(event.target.value)} /></label></div></details>
       </div>
-      {pager.error && <div className="inline-error" role="alert">Detections could not be loaded: {pager.error}</div>}
-      <OperationalTable rows={pager.items} columns={columns} rowKey={(row) => row.detectionId} selectedKey={selectedKey} sortKey="lastDetectedAt" sortDirection="desc" onSort={() => undefined} onSelect={(row) => setSelectedKey(row.detectionId)} sortable={false} pageKey={`${queryKey}-${pager.pageNumber}`} emptyTitle={pager.loading ? 'Loading detections' : 'No detections under current coverage'} emptyDescription="Detections appear only when an enabled rule has sufficient corroborating evidence. Factual Events remain available separately." ariaLabel="Explainable detections" />
-      <CursorPagination pageNumber={pager.pageNumber} itemCount={pager.items.length} noun="detections" hasMore={pager.hasMore} canPrevious={pager.canPrevious} loading={pager.loading} onPrevious={pager.previous} onNext={pager.next} onRetry={pager.reload} />
+      {pager.error && <div className="inline-error" role="alert">{t('table.loadError')}</div>}
+      <OperationalTable rows={pager.items} columns={columns} rowKey={(row) => row.detectionId} selectedKey={selectedKey} sortKey="lastDetectedAt" sortDirection="desc" onSort={() => undefined} onSelect={(row) => setSelectedKey(row.detectionId)} sortable={false} pageKey={`${queryKey}-${pager.pageNumber}`} emptyTitle={pager.loading ? t('table.loading') : t('table.empty')} emptyDescription={t('table.emptyDescription')} ariaLabel={t('table.ariaLabel')} />
+      <CursorPagination pageNumber={pager.pageNumber} itemCount={pager.items.length} nounKey="detections" hasMore={pager.hasMore} canPrevious={pager.canPrevious} loading={pager.loading} onPrevious={pager.previous} onNext={pager.next} onRetry={pager.reload} />
     </section>
     <DetectionDrawer detection={selected} rule={selectedRule} revision={revision} onClose={() => setSelectedKey(undefined)} onStatusChange={onStatusChange} onOpenSourceEvent={onOpenSourceEvent} />
   </>

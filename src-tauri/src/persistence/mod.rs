@@ -1,6 +1,6 @@
 use crate::models::{LiveTelemetrySnapshot, SystemOverview};
 use chrono::{Duration, Utc};
-use rusqlite::{params, Connection, Transaction};
+use rusqlite::{params, Connection, OptionalExtension, Transaction};
 use std::{
     collections::HashMap,
     path::PathBuf,
@@ -428,6 +428,30 @@ impl Database {
             .map_err(|_| "Unable to persist theme".into())
     }
 
+    pub fn get_language(&self) -> Result<Option<String>, String> {
+        let connection = self.connection.lock().map_err(|_| "Database unavailable")?;
+        connection
+            .query_row(
+                "SELECT value FROM settings WHERE key = 'language'",
+                [],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|_| "Unable to load language preference".into())
+    }
+
+    pub fn set_language(&self, language: &str) -> Result<(), String> {
+        let connection = self.connection.lock().map_err(|_| "Database unavailable")?;
+        connection
+            .execute(
+                "INSERT INTO settings(key, value, updated_at) VALUES ('language', ?1, ?2)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+                params![language, Utc::now().to_rfc3339()],
+            )
+            .map(|_| ())
+            .map_err(|_| "Unable to persist language preference".into())
+    }
+
     pub fn status(&self) -> Result<(i64, bool), String> {
         let connection = self.connection.lock().map_err(|_| "Database unavailable")?;
         let version = connection
@@ -694,11 +718,19 @@ mod tests {
     }
 
     #[test]
-    fn migrations_are_versioned_and_theme_round_trips() {
+    fn migrations_are_versioned_and_preferences_round_trip() {
         let database = Database::in_memory().expect("database should initialize");
         assert_eq!(database.status().expect("status").0, 6);
         database.set_theme("terminal").expect("theme should save");
         assert_eq!(database.get_theme().expect("theme should load"), "terminal");
+        assert_eq!(database.get_language().expect("language query"), None);
+        database
+            .set_language("pt-BR")
+            .expect("language should save");
+        assert_eq!(
+            database.get_language().expect("language should load"),
+            Some("pt-BR".into())
+        );
     }
 
     #[test]

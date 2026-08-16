@@ -55,6 +55,19 @@
 - SQLite schema v6; real EXE/MSI/NSIS smoke; controlled benign process fixture; no malware,
   service mutation, external reputation, shell response, or fabricated release data
 
+## Sprint 2C — English and Português (Brasil) localization (complete)
+
+- Sixteen namespaces and 969 parity-checked leaf keys for each official locale
+- Runtime language switching with durable SQLite preference and rollback on persistence failure
+- Initial locale priority: saved preference, native Windows user locale, then English fallback
+- Locale-aware pluralization, numbers, percentages, dates, timestamps, and relative time
+- Localized shell, settings, accessibility, operational telemetry, baseline, security events,
+  detections, rules, and Security Score presentation
+- Display labels localized without changing technical values, Detection Engine behavior, rule
+  definitions, evidence, correlation, deduplication, or Security Score semantics
+- Real Tauri review in both languages across five desktop resolutions and all four themes
+- Eight release screenshots kept outside Git and complete frontend/Rust/release quality gates
+
 `EDY-PROC-003` remains deferred: current executable identity is not stable enough to infer
 tampering from metadata changes without bounded content identity. High/Critical rules,
 production calibration, external intelligence, notifications native to Windows, automated
@@ -68,7 +81,7 @@ response, and long-term detection archival/downsampling remain future work.
 4. Vulnerability and threat-intelligence sources with secure credentials
 5. Carefully authorized response actions, each behind a separate security boundary
 
-## Explicit non-goals through Sprint 2B
+## Explicit non-goals through Sprint 2C
 
 VirusTotal, AbuseIPDB, HIBP, urlscan, NVD/CISA, geolocation, reputation,
 advanced network scanning, CVE matching, AI/ML classification, process/network blocking,

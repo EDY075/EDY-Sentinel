@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent, ReactNode } from 'react'
 import { ArrowDown, ArrowUp } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { SortDirection } from '../../features/telemetry/transforms'
 
 export interface OperationalColumn<T> {
@@ -31,6 +32,7 @@ const ROW_HEIGHT = 45
 const OVERSCAN = 6
 
 export function OperationalTable<T>({ rows, columns, rowKey, selectedKey, sortKey, sortDirection, onSort, onSelect, emptyTitle, emptyDescription, ariaLabel, sortable = true, pageKey }: OperationalTableProps<T>) {
+  const { t } = useTranslation('telemetry')
   const [scrollTop, setScrollTop] = useState(0)
   const [viewportHeight, setViewportHeight] = useState(420)
   const [focusIndex, setFocusIndex] = useState(0)
@@ -93,7 +95,7 @@ export function OperationalTable<T>({ rows, columns, rowKey, selectedKey, sortKe
           {windowed.rows.map((row, offset) => {
             const index = windowed.start + offset
             const key = rowKey(row)
-            return <div id={`${tableId}-row-${index}`} key={key} role="row" aria-rowindex={index + 2} aria-selected={selectedKey === key} data-focused={focusIndex === index || undefined} className="operational-table__row" style={{ '--table-template': template, '--table-template-compact': compactTemplate, '--table-template-mobile': mobileTemplate, transform: `translateY(${index * ROW_HEIGHT}px)` } as CSSProperties} onMouseEnter={() => setFocusIndex(index)} onDoubleClick={() => onSelect(row)} onClick={() => onSelect(row)}>{columns.map((column) => <div key={String(column.key)} role="gridcell" data-priority={column.priority} title={String(row[column.key] ?? 'Unavailable')}>{column.render(row)}</div>)}</div>
+            return <div id={`${tableId}-row-${index}`} key={key} role="row" aria-rowindex={index + 2} aria-selected={selectedKey === key} data-focused={focusIndex === index || undefined} className="operational-table__row" style={{ '--table-template': template, '--table-template-compact': compactTemplate, '--table-template-mobile': mobileTemplate, transform: `translateY(${index * ROW_HEIGHT}px)` } as CSSProperties} onMouseEnter={() => setFocusIndex(index)} onDoubleClick={() => onSelect(row)} onClick={() => onSelect(row)}>{columns.map((column) => <div key={String(column.key)} role="gridcell" data-priority={column.priority} title={String(row[column.key] ?? t('table.unavailable'))}>{column.render(row)}</div>)}</div>
           })}
         </div>}
       </div>
