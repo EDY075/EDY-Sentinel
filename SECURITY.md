@@ -23,6 +23,23 @@
 - Protects connection attribution with process creation identity, a bounded
   recently-exited cache, and a PID-reuse guard.
 
+## Sprint 2A baseline and event posture
+
+- Baseline learning and comparison remain fully local; no host, process, network, service,
+  event, or identifier data leaves the device.
+- Baseline host identity is an opaque SHA-256 derivation of MachineGuid and system-volume
+  serial. Raw values and hostname are not stored in baseline metadata.
+- Executable identity uses normalized path and cached file/signature metadata. File content
+  is not continuously hashed.
+- Learning emits no new-behavior events. Ready comparisons create factual observations,
+  never malware claims or severity labels.
+- Reset/relearn requires an exact confirmation phrase, preserves previous baseline versions,
+  and does not remove telemetry/event history outside the active baseline.
+- Event workflow changes are allowlisted and parameterized. SQL identifiers used internally
+  are compile-time constants; user input never becomes SQL syntax.
+- No shell, arbitrary path, cloud telemetry, external API, firewall, process termination,
+  or service-control capability was added.
+
 ## Future integration credentials
 
 Secrets must be stored in Windows Credential Manager. SQLite may contain only a non-secret reference. Secrets must never enter React state, logs, `.env`, command-line arguments, snapshots, or Git.

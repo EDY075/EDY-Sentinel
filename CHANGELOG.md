@@ -2,6 +2,32 @@
 
 All notable changes follow Keep a Changelog principles.
 
+## [0.3.0] — 2026-08-16
+
+### Added
+
+- Local Rust Behavioral Baseline Engine with versioned host-bound Learning, Ready, Stale,
+  Error, reset, relearn, manual test completion, and crash recovery semantics
+- Factual executable, process-pattern, parent-child, destination, service, route, gateway,
+  DNS, and interface baseline entities
+- Central security-event foundation with evidence, baseline context, stable identity,
+  deduplication, reopen policy, workflow status, and bounded retention
+- Security Events operational table, factual evidence drawer, baseline Overview panel,
+  strong confirmation dialogs, and real command-palette actions
+- SQLite schema v4 and focused Rust/TypeScript baseline and event tests
+
+### Security
+
+- Host baseline identity stores only an opaque hash derived from Windows installation and
+  system-volume identifiers; raw identifiers and hostname are not persisted in metadata
+- Executable identity hashes metadata only; no continuous content hashing, cloud telemetry,
+  external reputation, threat severity, or numeric Security Score was introduced
+
+### Deferred
+
+- Rule-engine severity, composite Security Score, threat intelligence, CVE enrichment,
+  automated response, firewall, process termination, and service control
+
 ## [0.2.1] — 2026-08-16
 
 ### Changed

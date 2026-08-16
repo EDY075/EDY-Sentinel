@@ -24,6 +24,8 @@ export interface ProcessInfo {
   company?: string
   signatureStatus: string
   signer?: string
+  executableFileSize?: number
+  executableModifiedAt?: string
   accessStatus: string
   firstSeen: string
   lastSeen: string

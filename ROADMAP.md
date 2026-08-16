@@ -28,13 +28,24 @@
 - Versioned factual event payloads, monotonic tracking, deduplication, and close debounce
 - SQLite schema v3 with integrity and retention validation
 
-## Recommended Sprint 2
+## Sprint 2A — Behavioral baseline and security event foundation (complete)
 
-Build a local baseline and investigation timeline over the factual Sprint 1 events.
-Add bounded event history queries, entity history views, and explainable change rules.
-Do not add a composite Security Score, external reputation, automated response, or
-service/process control until evidence calibration and a separate authorization model
-exist.
+- Versioned, host-bound local baseline with Learning/Ready/Stale/Error lifecycle
+- Process, executable, parent-child, destination, service, route, gateway, DNS, and
+  interface facts learned from real telemetry
+- Crash-safe learning, guarded reset/relearn, and preserved baseline history
+- Central factual security events with evidence, deduplication, reopen policy, and local
+  New/Seen/Acknowledged/Resolved/Ignored workflow
+- Security Events table and evidence drawer without fabricated severity
+- SQLite schema v4 and bounded event retention
+
+## Recommended Sprint 2B
+
+Build a small explainable rule engine over the factual Sprint 2A event contract. Add
+versioned rule definitions, evidence requirements, calibrated severity, entity history,
+and investigation workflow. Do not calculate a composite Security Score until rules and
+calibration are validated. External reputation, automated response, and process/service
+control remain separate future authorization boundaries.
 
 ## Later increments
 
@@ -44,7 +55,7 @@ exist.
 4. Vulnerability and threat-intelligence sources with secure credentials
 5. Explainable Security Score after evidence, calibration, and tests exist
 
-## Explicit non-goals through Sprint 1.1
+## Explicit non-goals through Sprint 2A
 
 VirusTotal, AbuseIPDB, HIBP, urlscan, NVD/CISA, geolocation, reputation,
 advanced network scanning, CVE matching, AI, process/network blocking, firewall

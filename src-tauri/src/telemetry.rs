@@ -585,6 +585,8 @@ mod tests {
             company: None,
             signature_status: "unsigned".into(),
             signer: None,
+            executable_file_size: Some(1024),
+            executable_modified_at: Some("2026-08-16T00:00:00Z".into()),
             access_status: "partial".into(),
             first_seen: "first".into(),
             last_seen: "last".into(),

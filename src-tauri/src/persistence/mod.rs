@@ -1,6 +1,6 @@
 use crate::models::{LiveTelemetrySnapshot, SystemOverview};
 use chrono::{Duration, Utc};
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, Transaction};
 use std::{
     collections::HashMap,
     path::PathBuf,
@@ -14,6 +14,10 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (
         3,
         include_str!("../../migrations/0003_telemetry_accuracy.sql"),
+    ),
+    (
+        4,
+        include_str!("../../migrations/0004_behavioral_baseline.sql"),
     ),
 ];
 
@@ -45,7 +49,7 @@ impl Database {
     }
 
     #[cfg(test)]
-    fn in_memory() -> Result<Self, rusqlite::Error> {
+    pub(crate) fn in_memory() -> Result<Self, rusqlite::Error> {
         let mut connection = Connection::open_in_memory()?;
         Self::configure(&connection)?;
         Self::migrate(&mut connection)?;
@@ -424,6 +428,29 @@ impl Database {
             .map_err(|_| "Unable to read database access mode")?;
         Ok((version, writable))
     }
+
+    pub(crate) fn baseline_read<T>(
+        &self,
+        operation: impl FnOnce(&Connection) -> Result<T, String>,
+    ) -> Result<T, String> {
+        let connection = self.connection.lock().map_err(|_| "Database unavailable")?;
+        operation(&connection)
+    }
+
+    pub(crate) fn baseline_transaction<T>(
+        &self,
+        operation: impl FnOnce(&Transaction<'_>) -> Result<T, String>,
+    ) -> Result<T, String> {
+        let mut connection = self.connection.lock().map_err(|_| "Database unavailable")?;
+        let transaction = connection
+            .transaction()
+            .map_err(|_| "Unable to start baseline transaction")?;
+        let value = operation(&transaction)?;
+        transaction
+            .commit()
+            .map_err(|_| "Unable to commit baseline transaction")?;
+        Ok(value)
+    }
 }
 
 #[derive(Debug)]
@@ -508,6 +535,8 @@ mod tests {
                 company: Some("Sample Company".into()),
                 signature_status: "unsigned".into(),
                 signer: None,
+                executable_file_size: Some(1024),
+                executable_modified_at: Some("2026-08-16T00:00:00Z".into()),
                 access_status: "available".into(),
                 first_seen: "2026-08-16T12:00:00Z".into(),
                 last_seen: "2026-08-16T12:00:00Z".into(),
@@ -580,7 +609,7 @@ mod tests {
     #[test]
     fn migrations_are_versioned_and_theme_round_trips() {
         let database = Database::in_memory().expect("database should initialize");
-        assert_eq!(database.status().expect("status").0, 3);
+        assert_eq!(database.status().expect("status").0, 4);
         database.set_theme("terminal").expect("theme should save");
         assert_eq!(database.get_theme().expect("theme should load"), "terminal");
     }
@@ -603,7 +632,7 @@ mod tests {
                 [],
             )
             .expect("Sprint 0 migration marker");
-        Database::migrate(&mut connection).expect("Sprint 1.1 migrations");
+        Database::migrate(&mut connection).expect("Sprint 2A migrations");
         let version: i64 = connection
             .query_row("SELECT MAX(version) FROM schema_migrations", [], |row| {
                 row.get(0)
@@ -619,8 +648,33 @@ mod tests {
                 |row| row.get(0),
             )
             .expect("live telemetry tables");
-        assert_eq!(version, 3);
+        let baseline_tables: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN (
+                    'behavioral_baselines', 'baseline_executables',
+                    'baseline_process_patterns', 'baseline_parent_child_relationships',
+                    'baseline_network_destinations', 'baseline_services',
+                    'baseline_network_configurations'
+                )",
+                [],
+                |row| row.get(0),
+            )
+            .expect("behavioral baseline tables");
+        let event_columns: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('security_events') WHERE name IN (
+                    'entity_key', 'title', 'first_seen_at', 'last_seen_at',
+                    'baseline_context_json', 'baseline_id', 'status',
+                    'observation_count', 'condition_active', 'schema_version'
+                )",
+                [],
+                |row| row.get(0),
+            )
+            .expect("security event foundation columns");
+        assert_eq!(version, 4);
         assert_eq!(live_tables, 4);
+        assert_eq!(baseline_tables, 7);
+        assert_eq!(event_columns, 10);
     }
 
     #[test]

@@ -154,6 +154,11 @@ impl ProcessCollector {
                         metadata.signature_status
                     },
                     signer: metadata.signer,
+                    executable_file_size: metadata.fingerprint.size,
+                    executable_modified_at: metadata
+                        .fingerprint
+                        .modified
+                        .map(|value| DateTime::<Utc>::from(value).to_rfc3339()),
                     access_status: if access_restricted {
                         "restricted".into()
                     } else if executable.is_none() || process.user_id().is_none() {

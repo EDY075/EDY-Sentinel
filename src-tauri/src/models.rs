@@ -170,6 +170,10 @@ pub struct ProcessRecord {
     pub signature_status: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub signer: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub executable_file_size: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub executable_modified_at: Option<String>,
     pub access_status: String,
     pub first_seen: String,
     pub last_seen: String,
@@ -261,4 +265,102 @@ pub struct CollectorHealth {
     pub restricted_count: usize,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum BaselineStatus {
+    NotInitialized,
+    Learning,
+    Ready,
+    Stale,
+    Error,
+}
+
+#[derive(Debug, Clone, Serialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct BaselineEntityCounts {
+    pub executables: u64,
+    pub process_patterns: u64,
+    pub parent_child_relationships: u64,
+    pub network_destinations: u64,
+    pub services: u64,
+    pub network_configurations: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BaselineSummary {
+    pub baseline_id: Option<String>,
+    pub created_at: Option<String>,
+    pub learning_started_at: Option<String>,
+    pub learning_completed_at: Option<String>,
+    pub version: Option<u32>,
+    pub host_id: Option<String>,
+    pub status: BaselineStatus,
+    pub observation_count: u64,
+    pub schema_version: u32,
+    pub learning_period_seconds: u64,
+    pub last_observed_at: Option<String>,
+    pub last_processing_duration_ms: u64,
+    pub error_message: Option<String>,
+    pub entities: BaselineEntityCounts,
+}
+
+impl Default for BaselineSummary {
+    fn default() -> Self {
+        Self {
+            baseline_id: None,
+            created_at: None,
+            learning_started_at: None,
+            learning_completed_at: None,
+            version: None,
+            host_id: None,
+            status: BaselineStatus::NotInitialized,
+            observation_count: 0,
+            schema_version: 1,
+            learning_period_seconds: 0,
+            last_observed_at: None,
+            last_processing_duration_ms: 0,
+            error_message: None,
+            entities: BaselineEntityCounts::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SecurityEventRecord {
+    pub event_id: String,
+    pub event_type: String,
+    pub entity_type: String,
+    pub entity_key: String,
+    pub title: String,
+    pub timestamp: String,
+    pub first_seen: String,
+    pub last_seen: String,
+    pub evidence: serde_json::Value,
+    pub baseline_context: serde_json::Value,
+    pub source: String,
+    pub baseline_id: Option<String>,
+    pub rule_id: Option<String>,
+    pub confidence: Option<String>,
+    pub status: String,
+    pub observation_count: u64,
+    pub condition_active: bool,
+    pub schema_version: u32,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BaselineActionInput {
+    pub confirmation: String,
+    pub learning_period_seconds: Option<u64>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SecurityEventStatusInput {
+    pub event_id: String,
+    pub status: String,
 }

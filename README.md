@@ -1,7 +1,8 @@
 # EDY Sentinel
 
-EDY Sentinel is a local-first Windows security observability desktop. Sprint 1.1
-hardens the live process, connection, service, and network telemetry foundation with
+EDY Sentinel is a local-first Windows security observability desktop. Sprint 2A adds a
+versioned behavioral baseline and factual security-event foundation over the hardened
+live process, connection, service, and network telemetry foundation, with
 explicit accuracy semantics, typed IPC, versioned SQLite persistence, a responsive
 premium shell, and four persisted themes.
 
@@ -21,6 +22,9 @@ No security score, alert, or operational metric is simulated. A missing collecto
 - Real read-only Windows service state, startup configuration, account, binary, and PID
 - Live pause/resume, versioned factual change events, deduplicated tracking, collector
   execution health, and separately reported data coverage
+- Local Learning/Ready behavioral baselines for executables, process relationships,
+  destinations, services, routes, gateways, DNS, and interface identity
+- Evidence-backed Security Events with no fabricated severity or threat classification
 - Virtualized process/connection/service tables with search, filters, sorting, keyboard
   navigation, and detail drawers
 - Local SQLite snapshots, normalized observations, retention, and settings migrations
@@ -55,7 +59,7 @@ The database is stored under the operating system application-data directory as 
 
 ## Privacy
 
-Telemetry never leaves the device in Sprint 1.1. The application has no API keys,
+Telemetry and behavioral baselines never leave the device in Sprint 2A. The application has no API keys,
 analytics, cloud integration, scanner, or artificial intelligence module. Process
 command lines are shown only when Windows exposes them and are not persisted.
 
@@ -63,4 +67,4 @@ command lines are shown only when Windows exposes them and are not persisted.
 
 Threat intelligence services, geolocation/reputation, active response, advanced
 network scanning, CVE matching, AI, and a computed Security Score are intentionally
-outside Sprint 1.1. See [ROADMAP.md](ROADMAP.md).
+outside Sprint 2A. See [ROADMAP.md](ROADMAP.md).

@@ -1,6 +1,9 @@
 import { AlertTriangle, Box, Cpu, Gauge, HardDrive, MemoryStick, MonitorCog, Network, RefreshCw, Router, Server, Wifi } from 'lucide-react'
 import { Badge, EmptyState, Skeleton, StatusDot } from '../../components/ui/primitives'
 import type { DatabaseStatus, SystemOverview } from '../../types/system'
+import type { BaselineSummary } from '../../types/baseline'
+import { BaselinePanel } from '../baseline/BaselinePanel'
+import type { BaselineActionMode } from '../baseline/baseline'
 import { formatBytes, formatUptime, percent } from './format'
 import { summarizePrimaryRoute } from './network'
 
@@ -10,6 +13,9 @@ interface OverviewProps {
   loading: boolean
   error: string | null
   onRefresh: () => void
+  baseline: BaselineSummary | null
+  onBaselineAction: (mode: BaselineActionMode) => void
+  onOpenEvents: () => void
 }
 
 function MetricCard({ icon, label, value, detail, progress }: { icon: React.ReactNode; label: string; value: string; detail: string; progress?: number }) {
@@ -33,7 +39,7 @@ function LoadingOverview() {
   )
 }
 
-export function Overview({ data, database, loading, error, onRefresh }: OverviewProps) {
+export function Overview({ data, database, loading, error, onRefresh, baseline, onBaselineAction, onOpenEvents }: OverviewProps) {
   if (loading) return <LoadingOverview />
   if (error) {
     return (
@@ -104,11 +110,7 @@ export function Overview({ data, database, loading, error, onRefresh }: Overview
           </div>
         </section>
 
-        <section className="panel score-panel">
-          <header className="panel__header"><div><Gauge size={18} /><span><strong>Security Score</strong><small>Explainable assessment</small></span></div><Badge>Pending engine</Badge></header>
-          <div className="score-empty"><span className="score-empty__ring"><Gauge size={26} /></span><div><strong>Security analysis engine not initialized</strong><p>No score is shown until the baseline and detection engines can produce an evidence-backed result.</p></div></div>
-          <footer><StatusDot status={database?.writable ? 'online' : 'partial'} /><span>SQLite schema v{database?.schemaVersion ?? '—'} · {database?.writable ? 'Snapshots persist locally' : 'Persistence status unavailable'}</span></footer>
-        </section>
+        <BaselinePanel baseline={baseline} database={database} onAction={onBaselineAction} onOpenEvents={onOpenEvents} />
       </div>
 
       {data.issues.length > 0 && <section className="collection-notice"><AlertTriangle size={17} /><div><strong>Some telemetry is unavailable</strong>{data.issues.map((issue) => <p key={issue.component}>{issue.component}: {issue.message}</p>)}</div></section>}

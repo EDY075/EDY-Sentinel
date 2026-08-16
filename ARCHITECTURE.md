@@ -12,7 +12,8 @@ Tauri command boundary
 Rust domain models
   -> Windows adapters (Registry, WMI, IP Helper, SCM, sysinfo)
   -> managed TelemetryEngine (cadence, tracking, factual diff)
-  -> SQLite repository (migrations, observations, events, settings)
+  -> BaselineEngine (versioned learning, factual comparison, deduplication)
+  -> SQLite repository (migrations, observations, baselines, events, settings)
 ```
 
 ## Frontend responsibilities
@@ -23,6 +24,8 @@ Rust domain models
 - `src/features/processes`: virtualized process table and process detail drawer
 - `src/features/connections`: virtualized TCP/UDP table and connection detail drawer
 - `src/features/services`: read-only Windows services table
+- `src/features/baseline`: behavioral baseline status, details, and guarded lifecycle actions
+- `src/features/events`: factual security-event table and evidence drawer
 - `src/features/theme`: four token-based theme choices
 - `src/components/ui`: reusable badge, status, skeleton, dialog, drawer, tooltip, and chart primitives
 - `src/lib/tauri.ts`: the only frontend IPC entry point
@@ -43,6 +46,8 @@ The frontend cannot execute SQL, WMI, Registry reads, shell commands, or arbitra
 - `telemetry.rs`: collector cadences, last-good snapshots, first/last seen tracking,
   observation counts, PID-identity correlation, bounded recent-process state,
   deduplicated tracking, and versioned factual change events
+- `baseline.rs`: host-bound baseline versions, learning/recovery state, executable and
+  behavior identity, Ready comparisons, factual event deduplication, and reopen policy
 - `commands.rs`: narrow Tauri commands and input validation
 - `models.rs`: serialization contracts
 - `persistence/mod.rs`: SQLite lifecycle, migrations, snapshots, and settings
@@ -76,7 +81,7 @@ Collectors do not know about React. The persistence layer does not accept SQL fr
 
 ## Persistence
 
-SQLite opens from Tauri's `app_data_dir`. Startup enables foreign keys, WAL, and a busy timeout, then applies each migration transactionally. `schema_migrations` is the single version ledger. Current schema version: 3.
+SQLite opens from Tauri's `app_data_dir`. Startup enables foreign keys, WAL, and a busy timeout, then applies each migration transactionally. `schema_migrations` is the single version ledger. Current schema version: 4.
 
 Tables prepared in Sprint 0: `system_snapshots`, `network_snapshots`, `devices`, `alerts`, `security_events`, `settings`, and `integrations`. Integration secrets are not stored in the database; only a future `secret_ref` may be stored.
 
@@ -90,9 +95,34 @@ Sprint 1.1 migration 0003 separates executable company/signature/signer facts,
 persists connection association state and recent process timestamps, and versions
 event collector/payload semantics without removing existing observations.
 
+Sprint 2A migration 0004 adds append-only baseline metadata/fact tables and extends the
+existing `security_events` foundation with entity identity, evidence, baseline context,
+workflow state, deduplication counts, activity, and schema version. Baseline lifecycle and
+fact writes are transactional. Previous baseline versions remain stored and inactive.
+
+## Behavioral baseline and security events
+
+The BaselineEngine runs after factual tracking. Live facts are sampled for baseline work no
+more often than every 10 seconds; network configuration is sampled at the existing 15-second
+system cadence. During Learning, facts are accumulated without emitting novelty events.
+Ready comparisons process keys and deltas against the immutable active baseline.
+
+Baseline states are `Not initialized`, `Learning`, `Ready`, `Stale`, and `Error`. Learning
+state survives crashes because timestamps, counts, and facts are persisted in the same
+transaction. Host identity is an opaque SHA-256 derivation of MachineGuid and system-volume
+serial; raw values and hostname are not stored in baseline metadata.
+
+Factual security events have no severity. Their stable key is baseline + event type +
+entity key. Repeated observations update one event. A resolved inactive condition reopens
+under the same ID when it reappears; ignored events stay ignored. Security Score remains
+pending until a future evidence-calibrated detection engine exists.
+
 Initial retention is seven days for inactive observations and full snapshots, and
 30 days for factual telemetry events. Cleanup runs at startup and then at most once
 every six hours; active rows are never removed. `VACUUM` is not run in the live path.
+
+Inactive resolved/ignored security events use 90-day retention; any other inactive
+security event is bounded to 180 days. Active conditions are preserved.
 
 ## Live cadence and pause semantics
 
@@ -119,3 +149,4 @@ Empty fake implementations are deliberately absent.
 - `docs/adr/0003-sqlite-and-secret-boundary.md`
 - `docs/adr/0004-live-telemetry-and-retention.md`
 - `docs/adr/0005-telemetry-accuracy-semantics.md`
+- `docs/adr/0006-behavioral-baseline-and-factual-events.md`

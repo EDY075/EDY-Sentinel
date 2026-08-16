@@ -24,6 +24,7 @@ tauri = { version = "2.11.3", features = [] }
 chrono = { version = "0.4", features = ["serde"] }
 rusqlite = { version = "0.37", features = ["bundled"] }
 sysinfo = "0.37"
+sha2 = "0.10"
 
 [target.'cfg(windows)'.dependencies]
 ipconfig = "0.3"
