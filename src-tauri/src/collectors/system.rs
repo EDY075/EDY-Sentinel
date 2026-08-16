@@ -1,6 +1,7 @@
 use crate::models::*;
 use chrono::Utc;
 use serde::Deserialize;
+use std::time::Instant;
 use sysinfo::{Disks, System};
 use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
 
@@ -15,6 +16,7 @@ struct VideoController {
 pub fn collect(
     network_result: (NetworkInfo, Option<CollectionIssue>),
 ) -> Result<SystemOverview, String> {
+    let attempt_started = Instant::now();
     let mut system = System::new_all();
     system.refresh_all();
     let mut issues = Vec::new();
@@ -141,8 +143,10 @@ pub fn collect(
         });
     }
 
+    let collected_at = Utc::now().to_rfc3339();
+    let observation_count = 4 + gpus.len() + disks.len() + network.interfaces.len();
     Ok(SystemOverview {
-        collected_at: Utc::now().to_rfc3339(),
+        collected_at: collected_at.clone(),
         source: "Windows Registry, WMI, IP Helper and native system APIs".into(),
         host,
         operating_system: OperatingSystemInfo {
@@ -156,6 +160,18 @@ pub fn collect(
         memory,
         disks,
         network,
+        collector: CollectorHealth {
+            id: "system".into(),
+            status: CollectorStatus::Healthy,
+            detail: "Windows system snapshot completed".into(),
+            last_success: Some(collected_at.clone()),
+            last_attempt: collected_at,
+            duration_ms: attempt_started.elapsed().as_millis() as u64,
+            observation_count,
+            restricted_count: 0,
+            error_code: None,
+            error_message: None,
+        },
         issues,
     })
 }

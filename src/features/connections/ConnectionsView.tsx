@@ -7,7 +7,7 @@ import type { OperationalColumn } from '../../components/ui/OperationalTable'
 import type { ConnectionFilter, ConnectionInfo } from '../../types/telemetry'
 import { filterConnections, sortRows } from '../telemetry/transforms'
 import type { SortDirection } from '../telemetry/transforms'
-import { displayValue, formatDateTime } from '../telemetry/format'
+import { displayValue, formatAge, formatDateTime } from '../telemetry/format'
 import { OperationalToolbar } from '../telemetry/OperationalToolbar'
 
 const filters: Array<{ value: ConnectionFilter; label: string }> = [
@@ -24,8 +24,15 @@ export function ConnectionsView({ connections }: { connections: ConnectionInfo[]
   const [selectedKey, setSelectedKey] = useState<string>()
   const rows = useMemo(() => sortRows(filterConnections(connections, query, filter), { key: sortKey, direction: sortDirection }), [connections, filter, query, sortDirection, sortKey])
   const selected = connections.find(({ key }) => key === selectedKey) ?? null
+  const processDetail = (row: ConnectionInfo) => {
+    if (row.associationStatus === 'recently_exited') return `Process exited · last seen ${formatAge(row.processLastSeen)}`
+    if (row.associationStatus === 'unresolved') return 'PID present · identity unresolved'
+    if (row.associationStatus === 'system_kernel') return 'Identity verified as system/kernel'
+    if (row.associationStatus === 'not_applicable') return 'Process association not applicable'
+    return row.executablePath ?? 'Associated to current process'
+  }
   const columns: OperationalColumn<ConnectionInfo>[] = [
-    { key: 'processName', label: 'Process', width: 'minmax(135px, 1.2fr)', render: (row) => <span className="cell-primary"><Network size={14} /><span><strong>{row.processName ?? 'Unassociated'}</strong><small>{row.executablePath ?? 'No process metadata'}</small></span></span> },
+    { key: 'processName', label: 'Process', width: 'minmax(155px, 1.3fr)', render: (row) => <span className="cell-primary"><Network size={14} /><span><strong>{row.processName ?? (row.associationStatus === 'unresolved' ? 'Unresolved' : 'Not applicable')}</strong><small>{processDetail(row)}</small></span></span> },
     { key: 'pid', label: 'PID', width: '70px', render: (row) => <code>{displayValue(row.pid)}</code> },
     { key: 'protocol', label: 'Protocol', width: '86px', render: (row) => <Badge>{row.protocol.toUpperCase()} · {row.ipVersion.toUpperCase().slice(-1)}</Badge> },
     { key: 'localAddress', label: 'Local', width: 'minmax(145px, 1.2fr)', render: (row) => <code>{endpoint(row.localAddress, row.localPort)}</code> },
@@ -41,7 +48,7 @@ export function ConnectionsView({ connections }: { connections: ConnectionInfo[]
       <OperationalTable rows={rows} columns={columns} rowKey={(row) => row.key} selectedKey={selectedKey} sortKey={sortKey} sortDirection={sortDirection} onSort={onSort} onSelect={(row) => setSelectedKey(row.key)} emptyTitle="No connections match this view" emptyDescription="Change the search or protocol filter. No external enrichment is applied." ariaLabel="Active Windows network connections" />
     </section>
     <Drawer open={Boolean(selected)} title="Connection details" onClose={() => setSelectedKey(undefined)}>{selected && <div className="drawer-content">
-      <DrawerSection icon={<Network size={15} />} title="Process"><Detail label="Process" value={selected.processName ?? 'Unassociated'} /><Detail label="PID" value={displayValue(selected.pid)} mono /><Detail label="Executable" value={displayValue(selected.executablePath)} mono /></DrawerSection>
+      <DrawerSection icon={<Network size={15} />} title="Process"><Detail label="Process" value={selected.processName ?? 'Unavailable'} /><Detail label="Association" value={selected.associationStatus.replace('_', ' ')} /><Detail label="Process last seen" value={selected.processLastSeen ? `${formatDateTime(selected.processLastSeen)} · ${formatAge(selected.processLastSeen)}` : 'Not applicable'} /><Detail label="PID" value={displayValue(selected.pid)} mono /><Detail label="Executable" value={displayValue(selected.executablePath)} mono /></DrawerSection>
       <DrawerSection icon={<MapPin size={15} />} title="Local"><Detail label="Address" value={selected.localAddress} mono /><Detail label="Port" value={String(selected.localPort)} mono /><Detail label="Protocol" value={`${selected.protocol.toUpperCase()} · ${selected.ipVersion.toUpperCase()}`} /></DrawerSection>
       <DrawerSection icon={<Route size={15} />} title="Remote"><Detail label="Address" value={displayValue(selected.remoteAddress)} mono /><Detail label="Port" value={displayValue(selected.remotePort)} mono /></DrawerSection>
       <DrawerSection icon={<Radio size={15} />} title="State"><Detail label="TCP state" value={selected.state ?? (selected.protocol === 'udp' ? 'Not applicable to UDP' : 'Unavailable')} /><Detail label="Observation" value={selected.active ? 'Active' : 'Closed'} /></DrawerSection>

@@ -2,6 +2,37 @@
 
 All notable changes follow Keep a Changelog principles.
 
+## [0.2.1] — 2026-08-16
+
+### Changed
+
+- Normalized process CPU to total logical-processor capacity while retaining an
+  explicitly labeled core-equivalent diagnostic value and honest warm-up state
+- Separated collector execution health from metadata coverage; restricted records
+  are counted without falsely degrading a successful collector
+- Added detailed collector attempt/success timestamps, duration, observations,
+  restrictions, and native failure diagnostics
+- Hardened connection correlation with a bounded recent-process cache, PID-reuse
+  guard, explicit association states, and two-snapshot close debounce
+- Selected the primary network interface from the native Windows best route and
+  exposed interface class, gateway, source address, and route metric
+- Split executable Company metadata, native signature result, and certificate signer
+- Versioned the factual event schema and made tracking/deduplication monotonic
+
+### Security
+
+- Signature verification and signer extraction use local Windows trust APIs only,
+  with bounded enrichment and cache invalidation on executable changes
+- Process command lines remain live-only; no external reputation or hashing service
+  was added
+
+### Fixed
+
+- Eliminated misleading collector degradation caused solely by access-restricted
+  process/service metadata
+- Prevented stale PID correlation from attributing a connection to a reused PID
+- Prevented a single transient network miss from emitting a false close event
+
 ## [0.2.0] — 2026-08-16
 
 ### Added

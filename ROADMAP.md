@@ -18,6 +18,16 @@
 - First/last seen tracking, factual diffs, normalized SQLite observations, and retention
 - Minimal frontend and Rust test foundations
 
+## Sprint 1.1 — Telemetry accuracy and hardening (complete)
+
+- Total-capacity process CPU semantics with core-equivalent diagnostic detail
+- Collector execution health separated from observation coverage/restrictions
+- PID-reuse-safe connection association and bounded recent-process correlation
+- Native best-route selection and factual network interface classification
+- Company metadata, signature verification, and signer identity kept distinct
+- Versioned factual event payloads, monotonic tracking, deduplication, and close debounce
+- SQLite schema v3 with integrity and retention validation
+
 ## Recommended Sprint 2
 
 Build a local baseline and investigation timeline over the factual Sprint 1 events.
@@ -34,7 +44,7 @@ exist.
 4. Vulnerability and threat-intelligence sources with secure credentials
 5. Explainable Security Score after evidence, calibration, and tests exist
 
-## Explicit non-goals through Sprint 1
+## Explicit non-goals through Sprint 1.1
 
 VirusTotal, AbuseIPDB, HIBP, urlscan, NVD/CISA, geolocation, reputation,
 advanced network scanning, CVE matching, AI, process/network blocking, firewall

@@ -1,5 +1,5 @@
 export type CollectorKey = 'system' | 'processes' | 'network' | 'services'
-export type CollectorState = 'active' | 'partial' | 'error' | 'loading'
+export type CollectorState = 'healthy' | 'degraded' | 'failed' | 'paused' | 'loading'
 
 export interface TelemetryIssue {
   component: string
@@ -15,13 +15,15 @@ export interface ProcessInfo {
   executablePath?: string
   commandLine?: string
   cpuPercent: number | null
+  coreEquivalentCpuPercent: number | null
   memoryBytes: number
   startTime?: string
   threadCount?: number
   architecture?: string
   description?: string
-  publisher?: string
+  company?: string
   signatureStatus: string
+  signer?: string
   accessStatus: string
   firstSeen: string
   lastSeen: string
@@ -29,7 +31,7 @@ export interface ProcessInfo {
   active: boolean
 }
 
-export type ProcessFilter = 'all' | 'user' | 'system' | 'high-cpu' | 'high-memory' | 'no-publisher' | 'restricted'
+export type ProcessFilter = 'all' | 'user' | 'system' | 'high-cpu' | 'high-memory' | 'no-company' | 'restricted'
 
 export interface ConnectionInfo {
   key: string
@@ -43,6 +45,8 @@ export interface ConnectionInfo {
   pid?: number
   processName?: string
   executablePath?: string
+  associationStatus: 'associated' | 'recently_exited' | 'unresolved' | 'system_kernel' | 'not_applicable'
+  processLastSeen?: string
   firstSeen: string
   lastSeen: string
   observationCount: number
@@ -67,12 +71,28 @@ export interface ServiceInfo {
 }
 
 export interface TelemetryEvent {
-  id: string
+  eventId: string
   eventType: string
-  subjectType: string
-  subjectKey: string
+  entityType: string
+  entityKey: string
+  timestamp: string
+  collector: string
+  factualPayload: Record<string, unknown>
+  schemaVersion: number
   message: string
-  occurredAt: string
+}
+
+export interface CollectorTelemetry {
+  id: string
+  status: 'healthy' | 'degraded' | 'failed'
+  detail: string
+  lastSuccess?: string
+  lastAttempt: string
+  durationMs: number
+  observationCount: number
+  restrictedCount: number
+  errorCode?: string
+  errorMessage?: string
 }
 
 export interface LiveTelemetrySnapshot {
@@ -81,12 +101,7 @@ export interface LiveTelemetrySnapshot {
   connections: ConnectionInfo[]
   services: ServiceInfo[]
   events: TelemetryEvent[]
-  collectors: Array<{
-    id: string
-    status: 'active' | 'partial'
-    detail: string
-    collectedAt: string
-  }>
+  collectors: CollectorTelemetry[]
   issues: TelemetryIssue[]
 }
 
@@ -97,5 +112,9 @@ export interface CollectorHealth {
   label: string
   state: CollectorState
   issue?: string
-  collectedAt?: string
+  lastSuccess?: string
+  lastAttempt?: string
+  durationMs?: number
+  observationCount: number
+  restrictedCount: number
 }

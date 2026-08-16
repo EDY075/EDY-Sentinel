@@ -33,13 +33,16 @@ The frontend cannot execute SQL, WMI, Registry reads, shell commands, or arbitra
 ## Rust responsibilities
 
 - `collectors/system.rs`: host, OS, CPU, GPU, memory, disks, uptime
-- `collectors/network.rs`: adapters, addresses, gateways, DNS, primary-route selection
-- `collectors/processes.rs`: persistent sysinfo process sampling, Toolhelp thread counts,
-  cached executable metadata, and cache-only WinVerifyTrust status
+- `collectors/network.rs`: adapters, addresses, gateways, DNS, native best-route
+  selection, route metrics, and interface classification
+- `collectors/processes.rs`: persistent sysinfo process sampling, total-capacity CPU
+  normalization, Toolhelp thread counts, cached executable metadata, local
+  WinVerifyTrust validation, and certificate signer extraction
 - `collectors/connections.rs`: native IP Helper TCP/UDP owner-PID tables for IPv4/IPv6
 - `collectors/services.rs`: read-only Service Control Manager enumeration and configuration
 - `telemetry.rs`: collector cadences, last-good snapshots, first/last seen tracking,
-  observation counts, PID correlation, and factual change events
+  observation counts, PID-identity correlation, bounded recent-process state,
+  deduplicated tracking, and versioned factual change events
 - `commands.rs`: narrow Tauri commands and input validation
 - `models.rs`: serialization contracts
 - `persistence/mod.rs`: SQLite lifecycle, migrations, snapshots, and settings
@@ -57,6 +60,15 @@ Collectors do not know about React. The persistence layer does not accept SQL fr
 - A failed network protocol family retains its last-good baseline and never creates
   a mass of false close events.
 - Process CPU is unavailable during sampler warm-up rather than fabricated as zero.
+- Displayed process CPU is normalized by total logical-processor capacity; the raw
+  aggregate is retained only as an explicitly named core-equivalent diagnostic.
+- Collector execution health and observation coverage are independent. Access-denied
+  metadata may increase `restrictedCount` without degrading a successful collector.
+- A connection is associated only when PID plus process identity are consistent;
+  ambiguous PID reuse remains unresolved rather than being guessed.
+- Connection closure requires two consecutive successful misses, while failed
+  protocol families preserve their last-good baseline.
+- Company version metadata, trust status, and certificate signer are separate facts.
 - UDP remote endpoints and TCP state remain unavailable because those concepts do
   not apply to an unconnected UDP binding.
 - A total orchestration failure becomes an error state.
@@ -64,7 +76,7 @@ Collectors do not know about React. The persistence layer does not accept SQL fr
 
 ## Persistence
 
-SQLite opens from Tauri's `app_data_dir`. Startup enables foreign keys, WAL, and a busy timeout, then applies each migration transactionally. `schema_migrations` is the single version ledger. Current schema version: 2.
+SQLite opens from Tauri's `app_data_dir`. Startup enables foreign keys, WAL, and a busy timeout, then applies each migration transactionally. `schema_migrations` is the single version ledger. Current schema version: 3.
 
 Tables prepared in Sprint 0: `system_snapshots`, `network_snapshots`, `devices`, `alerts`, `security_events`, `settings`, and `integrations`. Integration secrets are not stored in the database; only a future `secret_ref` may be stored.
 
@@ -73,6 +85,10 @@ Sprint 1 adds `process_observations`, `connection_observations`,
 persisted. Live entity heartbeats are batched at approximately 60 seconds, while
 factual events are written promptly. Full Sprint 0 system/network snapshots are
 limited to one write per five minutes.
+
+Sprint 1.1 migration 0003 separates executable company/signature/signer facts,
+persists connection association state and recent process timestamps, and versions
+event collector/payload semantics without removing existing observations.
 
 Initial retention is seven days for inactive observations and full snapshots, and
 30 days for factual telemetry events. Cleanup runs at startup and then at most once
@@ -102,3 +118,4 @@ Empty fake implementations are deliberately absent.
 - `docs/adr/0002-real-data-partial-results.md`
 - `docs/adr/0003-sqlite-and-secret-boundary.md`
 - `docs/adr/0004-live-telemetry-and-retention.md`
+- `docs/adr/0005-telemetry-accuracy-semantics.md`

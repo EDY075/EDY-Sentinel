@@ -14,6 +14,14 @@ use windows_sys::Win32::{
         CloseHandle, INVALID_HANDLE_VALUE, TRUST_E_NOSIGNATURE, TRUST_E_PROVIDER_UNKNOWN,
         TRUST_E_SUBJECT_FORM_UNKNOWN,
     },
+    Security::Cryptography::{
+        CertCloseStore, CertFindCertificateInStore, CertFreeCertificateContext, CertGetNameStringW,
+        CryptMsgClose, CryptMsgGetParam, CryptQueryObject, CERT_FIND_SUBJECT_CERT, CERT_INFO,
+        CERT_NAME_SIMPLE_DISPLAY_TYPE, CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED,
+        CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED, CERT_QUERY_FORMAT_FLAG_BINARY,
+        CERT_QUERY_OBJECT_FILE, CMSG_SIGNER_INFO, CMSG_SIGNER_INFO_PARAM, PKCS_7_ASN_ENCODING,
+        X509_ASN_ENCODING,
+    },
     Security::WinTrust::{
         WinVerifyTrust, WINTRUST_ACTION_GENERIC_VERIFY_V2, WINTRUST_DATA, WINTRUST_DATA_0,
         WINTRUST_FILE_INFO, WTD_CACHE_ONLY_URL_RETRIEVAL, WTD_CHOICE_FILE, WTD_REVOKE_NONE,
@@ -29,21 +37,32 @@ use windows_sys::Win32::{
     },
 };
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct FileFingerprint {
+    modified: Option<SystemTime>,
+    size: Option<u64>,
+}
+
 #[derive(Clone)]
 struct ExecutableMetadata {
-    modified: Option<SystemTime>,
+    fingerprint: FileFingerprint,
     description: Option<String>,
-    publisher: Option<String>,
+    company: Option<String>,
     signature_status: String,
+    signer: Option<String>,
 }
 
 impl Default for ExecutableMetadata {
     fn default() -> Self {
         Self {
-            modified: None,
+            fingerprint: FileFingerprint {
+                modified: None,
+                size: None,
+            },
             description: None,
-            publisher: None,
-            signature_status: "unavailable".into(),
+            company: None,
+            signature_status: "unknown".into(),
+            signer: None,
         }
     }
 }
@@ -69,12 +88,13 @@ impl Default for ProcessCollector {
 }
 
 impl ProcessCollector {
-    pub fn collect(&mut self) -> (Vec<ProcessRecord>, Vec<CollectionIssue>) {
+    pub fn collect(&mut self) -> (Vec<ProcessRecord>, usize, Vec<CollectionIssue>) {
         self.system.refresh_processes(ProcessesToUpdate::All, true);
         let thread_counts = collect_thread_counts();
         let now = Utc::now().to_rfc3339();
         let mut restricted = 0usize;
         let mut enrichment_budget = 24usize;
+        let logical_processors = self.system.cpus().len().max(1);
 
         let mut records: Vec<_> = self
             .system
@@ -94,6 +114,8 @@ impl ProcessCollector {
                 let start_time = DateTime::from_timestamp(process.start_time() as i64, 0)
                     .map(|value| value.to_rfc3339());
                 let key = format!("{}:{}", pid_value, process.start_time());
+                let (cpu_percent, core_equivalent_cpu_percent) =
+                    cpu_sample(self.warmed, process.cpu_usage(), logical_processors);
                 ProcessRecord {
                     key,
                     name: process.name().to_string_lossy().into_owned(),
@@ -114,7 +136,8 @@ impl ProcessCollector {
                             .collect::<Vec<_>>()
                             .join(" ")
                     }),
-                    cpu_percent: self.warmed.then(|| process.cpu_usage()),
+                    cpu_percent,
+                    core_equivalent_cpu_percent,
                     memory_bytes: process.memory(),
                     start_time,
                     thread_count: thread_counts.get(&pid_value).copied(),
@@ -124,8 +147,13 @@ impl ProcessCollector {
                         .or_insert_with(|| process_architecture(pid_value))
                         .clone(),
                     description: metadata.description,
-                    publisher: metadata.publisher,
-                    signature_status: metadata.signature_status,
+                    company: metadata.company,
+                    signature_status: if access_restricted {
+                        "restricted".into()
+                    } else {
+                        metadata.signature_status
+                    },
+                    signer: metadata.signer,
                     access_status: if access_restricted {
                         "restricted".into()
                     } else if executable.is_none() || process.user_id().is_none() {
@@ -142,20 +170,11 @@ impl ProcessCollector {
             .collect();
         records.sort_by(|left, right| left.name.cmp(&right.name).then(left.pid.cmp(&right.pid)));
 
-        let issues = if restricted == 0 {
-            Vec::new()
-        } else {
-            vec![CollectionIssue {
-            component: "processes".into(),
-            message: format!(
-                "Windows restricted executable details for {restricted} process(es); basic identity remains available"
-            ),
-        }]
-        };
+        let issues = Vec::new();
         self.architectures
             .retain(|key, _| records.iter().any(|record| &record.key == key));
         self.warmed = true;
-        (records, issues)
+        (records, restricted, issues)
     }
 }
 
@@ -209,11 +228,11 @@ fn process_architecture(pid: u32) -> Option<String> {
 }
 
 fn cached_metadata(path: &Path, enrichment_budget: &mut usize) -> ExecutableMetadata {
-    let modified = path.metadata().ok().and_then(|value| value.modified().ok());
+    let fingerprint = metadata_fingerprint(path);
     let cache = METADATA_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
     if let Ok(cache) = cache.lock() {
         if let Some(value) = cache.get(path) {
-            if value.modified == modified {
+            if value.fingerprint == fingerprint {
                 return value.clone();
             }
         }
@@ -222,12 +241,14 @@ fn cached_metadata(path: &Path, enrichment_budget: &mut usize) -> ExecutableMeta
         return ExecutableMetadata::default();
     }
     *enrichment_budget -= 1;
-    let (description, publisher) = read_version_metadata(path);
+    let (description, company) = read_version_metadata(path);
+    let (signature_status, signer) = verify_signature(path);
     let value = ExecutableMetadata {
-        modified,
+        fingerprint,
         description,
-        publisher,
-        signature_status: verify_signature(path),
+        company,
+        signature_status,
+        signer,
     };
     if let Ok(mut cache) = cache.lock() {
         cache.insert(path.to_path_buf(), value.clone());
@@ -235,7 +256,34 @@ fn cached_metadata(path: &Path, enrichment_budget: &mut usize) -> ExecutableMeta
     value
 }
 
-fn verify_signature(path: &Path) -> String {
+fn metadata_fingerprint(path: &Path) -> FileFingerprint {
+    let metadata = path.metadata().ok();
+    FileFingerprint {
+        modified: metadata.as_ref().and_then(|value| value.modified().ok()),
+        size: metadata.map(|value| value.len()),
+    }
+}
+
+fn normalize_cpu(core_equivalent_percent: f32, logical_processors: usize) -> f32 {
+    (core_equivalent_percent / logical_processors.max(1) as f32).clamp(0.0, 100.0)
+}
+
+fn cpu_sample(
+    warmed: bool,
+    core_equivalent: f32,
+    logical_processors: usize,
+) -> (Option<f32>, Option<f32>) {
+    if warmed {
+        (
+            Some(normalize_cpu(core_equivalent, logical_processors)),
+            Some(core_equivalent),
+        )
+    } else {
+        (None, None)
+    }
+}
+
+fn verify_signature(path: &Path) -> (String, Option<String>) {
     let path_wide = wide(path.as_os_str());
     unsafe {
         let mut file = WINTRUST_FILE_INFO {
@@ -260,19 +308,134 @@ fn verify_signature(path: &Path) -> String {
             pSignatureSettings: std::ptr::null_mut(),
         };
         let mut action = WINTRUST_ACTION_GENERIC_VERIFY_V2;
-        match WinVerifyTrust(
+        let status = match WinVerifyTrust(
             std::ptr::null_mut(),
             &mut action,
             (&mut trust as *mut WINTRUST_DATA).cast(),
         ) {
-            0 => "valid",
+            0 => "signed",
             TRUST_E_NOSIGNATURE | TRUST_E_PROVIDER_UNKNOWN | TRUST_E_SUBJECT_FORM_UNKNOWN => {
                 "unsigned"
             }
-            _ => "verification_failed",
-        }
-        .into()
+            _ => "unknown",
+        };
+        let signer = (status == "signed").then(|| signer_name(path)).flatten();
+        (status.into(), signer)
     }
+}
+
+fn signer_name(path: &Path) -> Option<String> {
+    let path_wide = wide(path.as_os_str());
+    unsafe {
+        let mut encoding = 0u32;
+        let mut content = 0u32;
+        let mut format = 0u32;
+        let mut store = std::ptr::null_mut();
+        let mut message = std::ptr::null_mut();
+        let mut context = std::ptr::null_mut();
+        if CryptQueryObject(
+            CERT_QUERY_OBJECT_FILE,
+            path_wide.as_ptr().cast(),
+            CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED | CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED,
+            CERT_QUERY_FORMAT_FLAG_BINARY,
+            0,
+            &mut encoding,
+            &mut content,
+            &mut format,
+            &mut store,
+            &mut message,
+            &mut context,
+        ) == 0
+        {
+            return None;
+        }
+
+        let result = signer_name_from_message(store, message);
+        if !message.is_null() {
+            CryptMsgClose(message);
+        }
+        if !store.is_null() {
+            CertCloseStore(store, 0);
+        }
+        result
+    }
+}
+
+unsafe fn signer_name_from_message(
+    store: windows_sys::Win32::Security::Cryptography::HCERTSTORE,
+    message: *mut std::ffi::c_void,
+) -> Option<String> {
+    if store.is_null() || message.is_null() {
+        return None;
+    }
+    let mut size = 0u32;
+    if CryptMsgGetParam(
+        message,
+        CMSG_SIGNER_INFO_PARAM,
+        0,
+        std::ptr::null_mut(),
+        &mut size,
+    ) == 0
+        || size < std::mem::size_of::<CMSG_SIGNER_INFO>() as u32
+    {
+        return None;
+    }
+    let mut buffer = vec![0u64; (size as usize).div_ceil(std::mem::size_of::<u64>())];
+    if CryptMsgGetParam(
+        message,
+        CMSG_SIGNER_INFO_PARAM,
+        0,
+        buffer.as_mut_ptr().cast(),
+        &mut size,
+    ) == 0
+    {
+        return None;
+    }
+    let signer = &*buffer.as_ptr().cast::<CMSG_SIGNER_INFO>();
+    let search = CERT_INFO {
+        Issuer: signer.Issuer,
+        SerialNumber: signer.SerialNumber,
+        ..Default::default()
+    };
+    let certificate = CertFindCertificateInStore(
+        store,
+        X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
+        0,
+        CERT_FIND_SUBJECT_CERT,
+        (&search as *const CERT_INFO).cast(),
+        std::ptr::null(),
+    );
+    if certificate.is_null() {
+        return None;
+    }
+    let length = CertGetNameStringW(
+        certificate,
+        CERT_NAME_SIMPLE_DISPLAY_TYPE,
+        0,
+        std::ptr::null(),
+        std::ptr::null_mut(),
+        0,
+    );
+    let result = if length > 1 {
+        let mut name = vec![0u16; length as usize];
+        let written = CertGetNameStringW(
+            certificate,
+            CERT_NAME_SIMPLE_DISPLAY_TYPE,
+            0,
+            std::ptr::null(),
+            name.as_mut_ptr(),
+            length,
+        );
+        (written > 1).then(|| {
+            String::from_utf16_lossy(&name[..written.saturating_sub(1) as usize])
+                .trim()
+                .to_string()
+        })
+    } else {
+        None
+    };
+    CertFreeCertificateContext(certificate);
+    result.filter(|value| !value.is_empty())
 }
 
 fn read_version_metadata(path: &Path) -> (Option<String>, Option<String>) {
@@ -354,4 +517,37 @@ unsafe fn query_version_string(data: &[u8], translation: (u16, u16), name: &str)
 
 fn wide(value: &OsStr) -> Vec<u16> {
     value.encode_wide().chain(std::iter::once(0)).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cpu_is_normalized_to_total_logical_capacity() {
+        assert!((normalize_cpu(100.0, 12) - 8.333_333).abs() < 0.001);
+        assert_eq!(normalize_cpu(1_500.0, 12), 100.0);
+        assert_eq!(normalize_cpu(50.0, 0), 50.0);
+    }
+
+    #[test]
+    fn first_cpu_sample_remains_in_calculating_state() {
+        assert_eq!(cpu_sample(false, 100.0, 12), (None, None));
+        assert_eq!(cpu_sample(true, 120.0, 12), (Some(10.0), Some(120.0)));
+    }
+
+    #[test]
+    fn metadata_cache_fingerprint_changes_with_size_or_timestamp() {
+        let base = FileFingerprint {
+            modified: Some(SystemTime::UNIX_EPOCH),
+            size: Some(10),
+        };
+        assert_ne!(
+            base,
+            FileFingerprint {
+                modified: Some(SystemTime::UNIX_EPOCH),
+                size: Some(11),
+            }
+        );
+    }
 }

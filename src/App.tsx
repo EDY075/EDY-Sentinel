@@ -41,9 +41,9 @@ function App() {
   const [toast, setToast] = useState<string | null>(null)
   const { live, setLive, loading, refreshing, overview, database, snapshot, error, health, refresh } = useTelemetry()
   const heading = headings[page]
-  const collectorsFailed = health.some(({ state }) => state === 'error')
-  const collectorsPartial = health.some(({ state }) => state === 'partial')
-  const collectorStatus = !live ? { title: 'Live updates paused', detail: 'Latest snapshot retained' } : collectorsFailed ? { title: 'Collector unavailable', detail: 'Review collector health' } : collectorsPartial ? { title: 'Collector telemetry partial', detail: 'Available data remains visible' } : { title: 'Local collectors active', detail: 'Observation on device' }
+  const collectorsFailed = health.some(({ state }) => state === 'failed')
+  const collectorsDegraded = health.some(({ state }) => state === 'degraded')
+  const collectorStatus = !live ? { title: 'Live updates paused', detail: 'Latest snapshot retained' } : collectorsFailed ? { title: 'Collector failed', detail: 'Review the factual error details' } : collectorsDegraded ? { title: 'Collector degraded', detail: 'Available data remains visible' } : { title: 'Collectors healthy', detail: 'Coverage shown separately' }
 
   useEffect(() => { document.documentElement.dataset.theme = theme }, [theme])
   useEffect(() => { loadTheme().then(setTheme).catch(() => undefined) }, [])
@@ -104,7 +104,7 @@ function App() {
             <Tooltip label="Refresh telemetry"><IconButton aria-label="Refresh telemetry" onClick={runRefresh} disabled={refreshing}><RefreshCw size={17} className={refreshing ? 'spin' : ''} /></IconButton></Tooltip>
             <div className="theme-anchor"><Tooltip label="Change theme"><IconButton aria-label="Change theme" aria-haspopup="menu" aria-expanded={themeOpen} onClick={() => setThemeOpen((open) => !open)}><Palette size={17} /></IconButton></Tooltip>{themeOpen && <ThemeMenu theme={theme} onChange={changeTheme} onClose={() => setThemeOpen(false)} />}</div>
             <Tooltip label="No new notifications"><IconButton aria-label="No new notifications" disabled><Bell size={17} /></IconButton></Tooltip><span className="topbar-divider" />
-            <div className="connection-state" data-paused={!live || collectorsFailed || collectorsPartial || undefined}><Wifi size={15} /><span><strong>{collectorStatus.title}</strong><small>{collectorStatus.detail}</small></span></div>
+            <div className="connection-state" data-paused={!live || collectorsFailed || collectorsDegraded || undefined}><Wifi size={15} /><span><strong>{collectorStatus.title}</strong><small>{collectorStatus.detail}</small></span></div>
           </div>
         </header>
 

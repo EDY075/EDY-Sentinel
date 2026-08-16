@@ -8,8 +8,17 @@ export function formatBytes(bytes?: number) {
 }
 
 export function formatPercent(value?: number | null) {
-  if (value == null || !Number.isFinite(value)) return 'Unavailable'
+  if (value == null || !Number.isFinite(value)) return 'Calculating'
   return `${value < 10 ? value.toFixed(1) : value.toFixed(0)}%`
+}
+
+export function formatAge(value?: string) {
+  if (!value) return 'unknown'
+  const seconds = Math.max(0, (Date.now() - new Date(value).getTime()) / 1000)
+  if (!Number.isFinite(seconds)) return 'unknown'
+  if (seconds < 10) return `${seconds.toFixed(1)}s ago`
+  if (seconds < 60) return `${Math.round(seconds)}s ago`
+  return `${Math.floor(seconds / 60)}m ago`
 }
 
 export function formatDateTime(value?: string) {

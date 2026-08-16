@@ -12,6 +12,7 @@ pub struct SystemOverview {
     pub memory: MemoryInfo,
     pub disks: Vec<DiskInfo>,
     pub network: NetworkInfo,
+    pub collector: CollectorHealth,
     pub issues: Vec<CollectionIssue>,
 }
 
@@ -72,7 +73,10 @@ pub struct DiskInfo {
 #[serde(rename_all = "camelCase")]
 pub struct NetworkInfo {
     pub primary_interface: Option<String>,
+    pub primary_interface_type: Option<String>,
     pub primary_ipv4: Option<String>,
+    pub primary_gateway: Option<String>,
+    pub primary_route_metric: Option<u32>,
     pub gateways: Vec<String>,
     pub dns_servers: Vec<String>,
     pub interfaces: Vec<NetworkInterface>,
@@ -83,6 +87,12 @@ pub struct NetworkInfo {
 pub struct NetworkInterface {
     pub name: String,
     pub friendly_name: String,
+    pub description: String,
+    pub interface_type: String,
+    pub classification_source: String,
+    pub operational_status: String,
+    pub ipv4_metric: u32,
+    pub primary_route: bool,
     pub ipv4: Vec<String>,
     pub ipv6: Vec<String>,
     pub gateways: Vec<String>,
@@ -145,6 +155,7 @@ pub struct ProcessRecord {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub command_line: Option<String>,
     pub cpu_percent: Option<f32>,
+    pub core_equivalent_cpu_percent: Option<f32>,
     pub memory_bytes: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub start_time: Option<String>,
@@ -155,8 +166,10 @@ pub struct ProcessRecord {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub publisher: Option<String>,
+    pub company: Option<String>,
     pub signature_status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub signer: Option<String>,
     pub access_status: String,
     pub first_seen: String,
     pub last_seen: String,
@@ -184,6 +197,9 @@ pub struct ConnectionRecord {
     pub process_name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub executable_path: Option<String>,
+    pub association_status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub process_last_seen: Option<String>,
     pub first_seen: String,
     pub last_seen: String,
     pub observation_count: u64,
@@ -213,19 +229,36 @@ pub struct ServiceRecord {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TelemetryEvent {
-    pub id: String,
+    pub event_id: String,
     pub event_type: String,
-    pub subject_type: String,
-    pub subject_key: String,
+    pub entity_type: String,
+    pub entity_key: String,
+    pub timestamp: String,
+    pub collector: String,
+    pub factual_payload: serde_json::Value,
+    pub schema_version: u32,
     pub message: String,
-    pub occurred_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum CollectorStatus {
+    Healthy,
+    Degraded,
+    Failed,
 }
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CollectorHealth {
     pub id: String,
-    pub status: String,
+    pub status: CollectorStatus,
     pub detail: String,
-    pub collected_at: String,
+    pub last_success: Option<String>,
+    pub last_attempt: String,
+    pub duration_ms: u64,
+    pub observation_count: usize,
+    pub restricted_count: usize,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
 }

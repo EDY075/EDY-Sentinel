@@ -40,17 +40,38 @@ export interface SystemOverview {
   }>
   network: {
     primaryInterface?: string
+    primaryInterfaceType?: string
     primaryIpv4?: string
+    primaryGateway?: string
+    primaryRouteMetric?: number
     gateways: string[]
     dnsServers: string[]
     interfaces: Array<{
       name: string
       friendlyName: string
+      description: string
+      interfaceType: string
+      classificationSource: string
+      operationalStatus: string
+      ipv4Metric: number
+      primaryRoute: boolean
       ipv4: string[]
       ipv6: string[]
       gateways: string[]
       dnsServers: string[]
     }>
+  }
+  collector: {
+    id: string
+    status: 'healthy' | 'degraded' | 'failed'
+    detail: string
+    lastSuccess?: string
+    lastAttempt: string
+    durationMs: number
+    observationCount: number
+    restrictedCount: number
+    errorCode?: string
+    errorMessage?: string
   }
   issues: Array<{ component: string; message: string }>
 }

@@ -16,23 +16,12 @@ use windows_sys::Win32::{
     },
 };
 
-pub fn collect() -> (Vec<ServiceRecord>, Vec<CollectionIssue>) {
+pub fn collect() -> (Vec<ServiceRecord>, usize, Vec<CollectionIssue>) {
     match collect_inner() {
-        Ok((records, restricted)) => {
-            let issues = if restricted == 0 {
-                Vec::new()
-            } else {
-                vec![CollectionIssue {
-                    component: "services".into(),
-                    message: format!(
-                        "Windows restricted configuration details for {restricted} service(s); runtime state remains available"
-                    ),
-                }]
-            };
-            (records, issues)
-        }
+        Ok((records, restricted)) => (records, restricted, Vec::new()),
         Err(message) => (
             Vec::new(),
+            0,
             vec![CollectionIssue {
                 component: "services".into(),
                 message,

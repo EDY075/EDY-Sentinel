@@ -1,9 +1,9 @@
 # EDY Sentinel
 
-EDY Sentinel is a local-first Windows security observability desktop. Sprint 1 adds
-live process, connection, and service observation to the production-shaped Tauri
-foundation, with typed IPC, versioned SQLite persistence, a responsive premium shell,
-and four persisted themes.
+EDY Sentinel is a local-first Windows security observability desktop. Sprint 1.1
+hardens the live process, connection, service, and network telemetry foundation with
+explicit accuracy semantics, typed IPC, versioned SQLite persistence, a responsive
+premium shell, and four persisted themes.
 
 No security score, alert, or operational metric is simulated. A missing collector is reported as unavailable; future engines remain explicitly not implemented.
 
@@ -11,12 +11,16 @@ No security score, alert, or operational metric is simulated. A missing collecto
 
 - Real hostname, user, Windows product/version/build, architecture, and uptime
 - Real CPU, GPU, memory, and volume details
-- Real Windows adapters, IPv4/IPv6 addresses, default gateway, and DNS resolvers
-- Real Windows processes with CPU/memory, ownership, path, command line when
-  accessible, thread count, architecture, executable metadata, and signature status
-- Real TCP/UDP IPv4/IPv6 bindings and connections correlated to processes by PID
+- Real Windows adapters, IPv4/IPv6 addresses, DNS resolvers, and the primary route
+  selected through the native Windows routing table
+- Real Windows processes with total-capacity CPU, core-equivalent CPU detail, memory,
+  ownership, path, live-only command line, executable company metadata, native
+  signature verification, and certificate signer when available
+- Real TCP/UDP IPv4/IPv6 bindings and connections with PID-reuse-safe association,
+  recent-process correlation, and explicit unresolved/system states
 - Real read-only Windows service state, startup configuration, account, binary, and PID
-- Live pause/resume, factual change events, first/last seen tracking, and collector health
+- Live pause/resume, versioned factual change events, deduplicated tracking, collector
+  execution health, and separately reported data coverage
 - Virtualized process/connection/service tables with search, filters, sorting, keyboard
   navigation, and detail drawers
 - Local SQLite snapshots, normalized observations, retention, and settings migrations
@@ -51,7 +55,7 @@ The database is stored under the operating system application-data directory as 
 
 ## Privacy
 
-Telemetry never leaves the device in Sprint 1. The application has no API keys,
+Telemetry never leaves the device in Sprint 1.1. The application has no API keys,
 analytics, cloud integration, scanner, or artificial intelligence module. Process
 command lines are shown only when Windows exposes them and are not persisted.
 
@@ -59,4 +63,4 @@ command lines are shown only when Windows exposes them and are not persisted.
 
 Threat intelligence services, geolocation/reputation, active response, advanced
 network scanning, CVE matching, AI, and a computed Security Score are intentionally
-outside Sprint 1. See [ROADMAP.md](ROADMAP.md).
+outside Sprint 1.1. See [ROADMAP.md](ROADMAP.md).

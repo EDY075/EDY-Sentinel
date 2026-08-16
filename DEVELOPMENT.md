@@ -44,7 +44,16 @@ Tauri on Windows requires WebView2 and Visual Studio Build Tools with MSVC and a
 - Establish the first successful collection as a diff baseline.
 - Never diff an unavailable collector or protocol family into mass stop/close events.
 - Preserve `null`/unavailable CPU during sampler warm-up.
+- Normalize displayed process CPU by the logical-processor count; label any retained
+  aggregate/core-equivalent value explicitly and never present it as total CPU.
+- Keep collector execution health independent from record coverage. Restricted or
+  unavailable metadata belongs in coverage counters unless collection itself fails.
+- Correlate connections to a process identity, not a bare PID; protect against PID
+  reuse and expose unresolved/recently-exited states instead of guessing.
+- Select the primary interface through the native best route; adapter enumeration
+  order is not routing evidence.
 - Cache executable metadata by file identity/last-write time; never hash continuously.
+- Keep Company metadata, trust verification, and certificate signer as distinct fields.
 - Do not persist or log process command lines.
 - Add collector-specific parsing, correlation, diff, and persistence tests for changes.
 

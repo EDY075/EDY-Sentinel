@@ -1,7 +1,8 @@
-import { AlertTriangle, Box, Cpu, Database, Gauge, HardDrive, MemoryStick, MonitorCog, Network, RefreshCw, Router, Server, Wifi } from 'lucide-react'
+import { AlertTriangle, Box, Cpu, Gauge, HardDrive, MemoryStick, MonitorCog, Network, RefreshCw, Router, Server, Wifi } from 'lucide-react'
 import { Badge, EmptyState, Skeleton, StatusDot } from '../../components/ui/primitives'
 import type { DatabaseStatus, SystemOverview } from '../../types/system'
 import { formatBytes, formatUptime, percent } from './format'
+import { summarizePrimaryRoute } from './network'
 
 interface OverviewProps {
   data: SystemOverview | null
@@ -49,6 +50,7 @@ export function Overview({ data, database, loading, error, onRefresh }: Overview
   const diskTotal = data.disks.reduce((sum, disk) => sum + disk.totalBytes, 0)
   const diskUsed = data.disks.reduce((sum, disk) => sum + (disk.totalBytes - disk.availableBytes), 0)
   const osDetail = [data.operatingSystem.edition, data.operatingSystem.displayVersion, data.operatingSystem.build && `Build ${data.operatingSystem.build}`].filter(Boolean).join(' · ')
+  const primaryRoute = summarizePrimaryRoute(data.network)
 
   return (
     <div className="overview">
@@ -59,7 +61,7 @@ export function Overview({ data, database, loading, error, onRefresh }: Overview
           <p>{data.operatingSystem.name} · {data.host.architecture} · signed in as {data.host.username}</p>
         </div>
         <div className="hero-card__meta">
-          <Badge tone={data.issues.length ? 'warning' : 'good'}>{data.issues.length ? 'Partial collection' : 'Local collectors active'}</Badge>
+          <Badge tone={data.issues.length ? 'warning' : 'good'}>{data.issues.length ? 'System data incomplete' : 'System snapshot current'}</Badge>
           <span>Updated {new Date(data.collectedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
         </div>
       </section>
@@ -82,11 +84,11 @@ export function Overview({ data, database, loading, error, onRefresh }: Overview
         </section>
 
         <section className="panel">
-          <header className="panel__header"><div><Network size={18} /><span><strong>Network posture</strong><small>Primary route and name resolution</small></span></div><Badge tone={data.network.primaryIpv4 ? 'good' : 'warning'}>{data.network.primaryIpv4 ? 'Connected' : 'Unavailable'}</Badge></header>
+          <header className="panel__header"><div><Network size={18} /><span><strong>Network posture</strong><small>Windows default internet route</small></span></div><Badge tone={data.network.primaryIpv4 ? 'good' : 'warning'}>{data.network.primaryIpv4 ? 'Primary route' : 'Unavailable'}</Badge></header>
           <dl className="detail-list">
-            <div><dt><Wifi size={16} /> Local IP</dt><dd>{data.network.primaryIpv4 ?? 'Unavailable'}<small>{data.network.primaryInterface ?? 'No primary interface detected'}</small></dd></div>
-            <div><dt><Router size={16} /> Gateway</dt><dd>{data.network.gateways[0] ?? 'Unavailable'}<small>{data.network.gateways.length > 1 ? `${data.network.gateways.length} routes detected` : 'Primary route'}</small></dd></div>
-            <div><dt><Database size={16} /> DNS</dt><dd>{data.network.dnsServers[0] ?? 'Unavailable'}<small>{data.network.dnsServers.slice(1).join(' · ') || 'No secondary resolver reported'}</small></dd></div>
+            <div><dt><Network size={16} /> {primaryRoute.label}</dt><dd>{primaryRoute.name}<small>{primaryRoute.type}{data.network.primaryRouteMetric != null ? ` · metric ${data.network.primaryRouteMetric}` : ''}</small></dd></div>
+            <div><dt><Wifi size={16} /> Local IP</dt><dd>{primaryRoute.localIp}<small>{primaryRoute.additionalInterfaces} additional interface{primaryRoute.additionalInterfaces === 1 ? '' : 's'} observed</small></dd></div>
+            <div><dt><Router size={16} /> Gateway</dt><dd>{primaryRoute.gateway}<small>{data.network.dnsServers[0] ? `DNS ${data.network.dnsServers[0]}` : 'DNS resolver unavailable'}</small></dd></div>
           </dl>
         </section>
       </div>

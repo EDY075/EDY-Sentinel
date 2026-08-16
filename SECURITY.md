@@ -1,6 +1,6 @@
 # Security
 
-## Sprint 1 posture
+## Sprint 1.1 posture
 
 - Runs as the current user; administrator rights are not requested.
 - Uses a narrow Tauri capability set (`core:default`) and a restrictive content security policy.
@@ -13,10 +13,15 @@
   PowerShell or construct shell commands from UI input.
 - Runs live collection on Tauri blocking workers and treats process access denial as
   a partial record rather than requesting elevation.
-- Performs executable signature verification with cache-only WinVerifyTrust and no
-  external reputation lookup.
+- Performs executable signature verification and signer extraction with local
+  WinVerifyTrust/CryptoAPI calls, bounded enrichment, file-change-aware caching, and
+  no external reputation lookup.
 - Does not continuously hash executables and exposes no process, network, firewall,
   or service-control command.
+- Treats CompanyName as version-resource metadata rather than proof of authorship,
+  and never derives a risk label from absent company, signer, or signature data.
+- Protects connection attribution with process creation identity, a bounded
+  recently-exited cache, and a PID-reuse guard.
 
 ## Future integration credentials
 

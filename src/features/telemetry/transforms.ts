@@ -21,7 +21,7 @@ export function sortRows<T>(rows: T[], sort: SortSpec<T>): T[] {
 export function filterProcesses(rows: ProcessInfo[], query: string, filter: ProcessFilter, currentUser?: string): ProcessInfo[] {
   const search = query.trim().toLocaleLowerCase()
   const searched = rows.filter((process) => {
-    const searchable = !search || [process.name, process.pid, process.user, process.publisher, process.executablePath].some((value) => includes(value, search))
+    const searchable = !search || [process.name, process.pid, process.user, process.company, process.signer, process.executablePath].some((value) => includes(value, search))
     return searchable
   })
   if (filter === 'high-cpu') return searched.filter(({ cpuPercent }) => cpuPercent != null).sort((left, right) => (right.cpuPercent ?? 0) - (left.cpuPercent ?? 0)).slice(0, 50)
@@ -29,7 +29,7 @@ export function filterProcesses(rows: ProcessInfo[], query: string, filter: Proc
   return searched.filter((process) => {
     if (filter === 'user') return Boolean(currentUser && process.user?.toLocaleLowerCase().includes(currentUser.toLocaleLowerCase()))
     if (filter === 'system') return process.user?.toLocaleLowerCase().includes('system') ?? false
-    if (filter === 'no-publisher') return !process.publisher
+    if (filter === 'no-company') return !process.company
     if (filter === 'restricted') return process.accessStatus.toLocaleLowerCase() !== 'available'
     return true
   })

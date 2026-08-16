@@ -214,8 +214,9 @@ kbd { padding: 3px 6px; color: var(--text-muted); background: var(--panel); bord
 .collector-health { display: inline-flex; align-items: center; gap: 5px; color: var(--text-muted); font-size: 9px; white-space: nowrap; }
 .collector-health i { width: 6px; height: 6px; background: var(--good); border-radius: 50%; }
 .collector-health small { color: var(--text-subtle); font-size: 8px; text-transform: capitalize; }
-.collector-health[data-state='partial'] i, .collector-health[data-state='loading'] i { background: var(--warning); }
-.collector-health[data-state='error'] i { background: var(--danger); }
+.collector-health em { color: var(--text-subtle); font-size: 7px; font-style: normal; }
+.collector-health[data-state='degraded'] i, .collector-health[data-state='loading'] i, .collector-health[data-state='paused'] i { background: var(--warning); }
+.collector-health[data-state='failed'] i { background: var(--danger); }
 .collector-warning { color: var(--warning); }
 .live-toggle { display: inline-flex; height: 28px; align-items: center; gap: 6px; padding: 0 10px; color: var(--warning); background: color-mix(in srgb, var(--warning) 8%, transparent); border: 1px solid color-mix(in srgb, var(--warning) 25%, var(--border)); border-radius: 7px; font-size: 9px; font-weight: 700; cursor: pointer; }
 .live-toggle[data-live='true'] { color: var(--good); background: color-mix(in srgb, var(--good) 8%, transparent); border-color: color-mix(in srgb, var(--good) 25%, var(--border)); }

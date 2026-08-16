@@ -4,6 +4,7 @@ use std::{
     collections::HashMap,
     mem::size_of,
     net::{Ipv4Addr, Ipv6Addr},
+    time::Duration,
 };
 use windows_sys::Win32::{
     Foundation::{ERROR_INSUFFICIENT_BUFFER, NO_ERROR},
@@ -14,7 +15,23 @@ use windows_sys::Win32::{
     Networking::WinSock::{AF_INET, AF_INET6},
 };
 
-pub fn collect(processes: &[ProcessRecord]) -> (Vec<ConnectionRecord>, Vec<CollectionIssue>) {
+const RECENT_PROCESS_TTL: Duration = Duration::from_secs(10);
+const PID_REUSE_GUARD: Duration = Duration::from_secs(5);
+
+#[derive(Debug, Clone)]
+pub struct RecentProcessIdentity {
+    pub key: String,
+    pub pid: u32,
+    pub name: String,
+    pub executable_path: Option<String>,
+    pub last_seen: String,
+    pub age: Duration,
+}
+
+pub fn collect(
+    processes: &[ProcessRecord],
+    recent_processes: &[RecentProcessIdentity],
+) -> (Vec<ConnectionRecord>, Vec<CollectionIssue>) {
     let now = Utc::now().to_rfc3339();
     let mut records = Vec::new();
     let mut issues = Vec::new();
@@ -34,7 +51,7 @@ pub fn collect(processes: &[ProcessRecord]) -> (Vec<ConnectionRecord>, Vec<Colle
         }
     }
 
-    correlate_processes(&mut records, processes);
+    correlate_processes(&mut records, processes, recent_processes);
     records.sort_by(|left, right| {
         left.protocol
             .cmp(&right.protocol)
@@ -47,15 +64,50 @@ pub fn collect(processes: &[ProcessRecord]) -> (Vec<ConnectionRecord>, Vec<Colle
 pub(crate) fn correlate_processes(
     connections: &mut [ConnectionRecord],
     processes: &[ProcessRecord],
+    recent_processes: &[RecentProcessIdentity],
 ) {
     let by_pid: HashMap<u32, &ProcessRecord> = processes
         .iter()
         .map(|process| (process.pid, process))
         .collect();
+    let recent_by_pid: HashMap<u32, &RecentProcessIdentity> = recent_processes
+        .iter()
+        .filter(|process| process.age <= RECENT_PROCESS_TTL)
+        .map(|process| (process.pid, process))
+        .collect();
     for connection in connections {
-        if let Some(process) = connection.pid.and_then(|pid| by_pid.get(&pid)) {
+        let Some(pid) = connection.pid else {
+            connection.association_status = "not_applicable".into();
+            continue;
+        };
+        if pid == 0 {
+            connection.process_name = Some("System / Kernel".into());
+            connection.association_status = "system_kernel".into();
+            continue;
+        }
+        if let Some(process) = by_pid.get(&pid) {
+            let reuse_ambiguous = recent_by_pid
+                .get(&pid)
+                .is_some_and(|recent| recent.key != process.key && recent.age <= PID_REUSE_GUARD);
+            if reuse_ambiguous {
+                connection.association_status = "unresolved".into();
+                continue;
+            }
             connection.process_name = Some(process.name.clone());
             connection.executable_path = process.executable_path.clone();
+            connection.association_status =
+                if pid == 4 && process.name.eq_ignore_ascii_case("System") {
+                    "system_kernel".into()
+                } else {
+                    "associated".into()
+                };
+        } else if let Some(recent) = recent_by_pid.get(&pid) {
+            connection.process_name = Some(recent.name.clone());
+            connection.executable_path = recent.executable_path.clone();
+            connection.process_last_seen = Some(recent.last_seen.clone());
+            connection.association_status = "recently_exited".into();
+        } else {
+            connection.association_status = "unresolved".into();
         }
     }
 }
@@ -74,7 +126,7 @@ fn tcp_v4(now: &str) -> Result<Vec<ConnectionRecord>, String> {
             (!is_listener).then(|| Ipv4Addr::from(row.dwRemoteAddr.to_ne_bytes()).to_string()),
             (!is_listener).then(|| port(row.dwRemotePort)),
             Some(tcp_state(row.dwState).into()),
-            (row.dwOwningPid != 0).then_some(row.dwOwningPid),
+            Some(row.dwOwningPid),
             now,
         )
     })
@@ -94,7 +146,7 @@ fn tcp_v6(now: &str) -> Result<Vec<ConnectionRecord>, String> {
             (!is_listener).then(|| ipv6(row.ucRemoteAddr, row.dwRemoteScopeId)),
             (!is_listener).then(|| port(row.dwRemotePort)),
             Some(tcp_state(row.dwState).into()),
-            (row.dwOwningPid != 0).then_some(row.dwOwningPid),
+            Some(row.dwOwningPid),
             now,
         )
     })
@@ -111,7 +163,7 @@ fn udp_v4(now: &str) -> Result<Vec<ConnectionRecord>, String> {
             None,
             None,
             None,
-            (row.dwOwningPid != 0).then_some(row.dwOwningPid),
+            Some(row.dwOwningPid),
             now,
         )
     })
@@ -128,7 +180,7 @@ fn udp_v6(now: &str) -> Result<Vec<ConnectionRecord>, String> {
             None,
             None,
             None,
-            (row.dwOwningPid != 0).then_some(row.dwOwningPid),
+            Some(row.dwOwningPid),
             now,
         )
     })
@@ -217,6 +269,12 @@ fn connection(
         pid,
         process_name: None,
         executable_path: None,
+        association_status: if pid.is_some() {
+            "unresolved".into()
+        } else {
+            "not_applicable".into()
+        },
+        process_last_seen: None,
         first_seen: now.into(),
         last_seen: now.into(),
         observation_count: 1,
@@ -274,8 +332,10 @@ mod tests {
             thread_count: None,
             architecture: None,
             description: None,
-            publisher: None,
+            core_equivalent_cpu_percent: Some(0.0),
+            company: None,
             signature_status: "not_checked".into(),
+            signer: None,
             access_status: "partial".into(),
             first_seen: "now".into(),
             last_seen: "now".into(),
@@ -297,9 +357,65 @@ mod tests {
             Some(42),
             "now",
         )];
-        correlate_processes(&mut values, &[process(42)]);
+        correlate_processes(&mut values, &[process(42)], &[]);
         assert_eq!(values[0].process_name.as_deref(), Some("sample.exe"));
         assert_eq!(values[0].executable_path.as_deref(), Some("C:\\sample.exe"));
+    }
+
+    #[test]
+    fn recent_pid_cache_does_not_cross_a_pid_reuse_boundary() {
+        let current = process(42);
+        let recent = RecentProcessIdentity {
+            key: "42:older".into(),
+            pid: 42,
+            name: "old.exe".into(),
+            executable_path: Some("C:\\old.exe".into()),
+            last_seen: "2026-08-16T00:00:00Z".into(),
+            age: Duration::from_secs(1),
+        };
+        let mut values = vec![connection(
+            "tcp",
+            "ipv4",
+            "127.0.0.1".into(),
+            443,
+            None,
+            None,
+            None,
+            Some(42),
+            "now",
+        )];
+        correlate_processes(&mut values, &[current], &[recent]);
+        assert_eq!(values[0].association_status, "unresolved");
+        assert!(values[0].process_name.is_none());
+    }
+
+    #[test]
+    fn connection_key_distinguishes_protocol_family_endpoints_and_pid() {
+        let tcp = connection(
+            "tcp",
+            "ipv4",
+            "127.0.0.1".into(),
+            80,
+            Some("127.0.0.2".into()),
+            Some(443),
+            Some("established".into()),
+            Some(7),
+            "now",
+        );
+        let udp = connection(
+            "udp",
+            "ipv4",
+            "127.0.0.1".into(),
+            80,
+            None,
+            None,
+            None,
+            Some(7),
+            "now",
+        );
+        assert_ne!(tcp.key, udp.key);
+        assert!(udp.remote_address.is_none());
+        assert!(udp.state.is_none());
     }
 
     #[test]

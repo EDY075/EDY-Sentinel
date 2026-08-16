@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 import { getDatabaseStatus, getLiveTelemetry, getSystemOverview } from '../../lib/tauri'
 import type { DatabaseStatus, SystemOverview } from '../../types/system'
 import type { CollectorHealth, LiveTelemetrySnapshot } from '../../types/telemetry'
-import { deriveCollectorHealth } from './health'
+import { applyPausedState, deriveCollectorHealth } from './health'
 
 const LIVE_INTERVAL_MS = 2_500
 const SYSTEM_INTERVAL_MS = 15_000
@@ -83,7 +83,7 @@ export function TelemetryProvider({ children }: { children: ReactNode }) {
     return () => window.clearInterval(interval)
   }, [collect, live])
 
-  const health = useMemo<CollectorHealth[]>(() => deriveCollectorHealth(loading, overview, snapshot, { system: systemFailure, live: liveFailure }), [liveFailure, loading, overview, snapshot, systemFailure])
+  const health = useMemo<CollectorHealth[]>(() => applyPausedState(deriveCollectorHealth(loading, overview, snapshot, { system: systemFailure, live: liveFailure }), live), [live, liveFailure, loading, overview, snapshot, systemFailure])
 
   const value = useMemo(() => ({ live, loading, refreshing, overview, database, snapshot, error, health, setLive, refresh: () => collect(true) }), [collect, database, error, health, live, loading, overview, refreshing, snapshot])
   return <TelemetryContext.Provider value={value}>{children}</TelemetryContext.Provider>

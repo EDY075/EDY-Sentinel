@@ -11,6 +11,10 @@ use std::{
 const MIGRATIONS: &[(i64, &str)] = &[
     (1, include_str!("../../migrations/0001_foundation.sql")),
     (2, include_str!("../../migrations/0002_live_telemetry.sql")),
+    (
+        3,
+        include_str!("../../migrations/0003_telemetry_accuracy.sql"),
+    ),
 ];
 
 #[derive(Clone)]
@@ -180,8 +184,8 @@ impl Database {
                     "INSERT INTO process_observations(
                         process_key, pid, process_name, parent_pid, user_name, executable_path,
                         start_time, first_seen_at, last_seen_at, observation_count, active,
-                        access_status
-                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+                        access_status, company_name, signature_status, signer_name
+                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
                      ON CONFLICT(process_key) DO UPDATE SET
                         pid = excluded.pid,
                         process_name = excluded.process_name,
@@ -193,7 +197,10 @@ impl Database {
                         last_seen_at = excluded.last_seen_at,
                         observation_count = excluded.observation_count,
                         active = excluded.active,
-                        access_status = excluded.access_status",
+                        access_status = excluded.access_status,
+                        company_name = excluded.company_name,
+                        signature_status = excluded.signature_status,
+                        signer_name = excluded.signer_name",
                     params![
                         process.key,
                         process.pid,
@@ -207,6 +214,9 @@ impl Database {
                         process.observation_count,
                         process.active as i64,
                         process.access_status,
+                        process.company,
+                        process.signature_status,
+                        process.signer,
                     ],
                 )
                 .map_err(|_| "Unable to persist process observations")?;
@@ -225,8 +235,8 @@ impl Database {
                     "INSERT INTO connection_observations(
                         connection_key, protocol, ip_version, process_id, local_address, local_port,
                         remote_address, remote_port, tcp_state, first_seen_at, last_seen_at,
-                        observation_count, active
-                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+                        observation_count, active, association_status, process_last_seen
+                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
                      ON CONFLICT(connection_key) DO UPDATE SET
                         process_id = excluded.process_id,
                         local_address = excluded.local_address,
@@ -237,7 +247,9 @@ impl Database {
                         first_seen_at = excluded.first_seen_at,
                         last_seen_at = excluded.last_seen_at,
                         observation_count = excluded.observation_count,
-                        active = excluded.active",
+                        active = excluded.active,
+                        association_status = excluded.association_status,
+                        process_last_seen = excluded.process_last_seen",
                     params![
                         item.key,
                         item.protocol,
@@ -252,6 +264,8 @@ impl Database {
                         item.last_seen,
                         item.observation_count,
                         item.active as i64,
+                        item.association_status,
+                        item.process_last_seen,
                     ],
                 )
                 .map_err(|_| "Unable to persist connection observations")?;
@@ -303,18 +317,24 @@ impl Database {
         }
 
         for event in &snapshot.events {
+            let factual_payload = serde_json::to_string(&event.factual_payload)
+                .map_err(|_| "Unable to serialize factual event payload")?;
             transaction
                 .execute(
                     "INSERT OR IGNORE INTO telemetry_events(
-                        id, event_type, subject_type, subject_key, message, occurred_at
-                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                        id, event_type, subject_type, subject_key, message, occurred_at,
+                        collector, factual_payload_json, schema_version
+                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
                     params![
-                        event.id,
+                        event.event_id,
                         event.event_type,
-                        event.subject_type,
-                        event.subject_key,
+                        event.entity_type,
+                        event.entity_key,
                         event.message,
-                        event.occurred_at,
+                        event.timestamp,
+                        event.collector,
+                        factual_payload,
+                        event.schema_version,
                     ],
                 )
                 .map_err(|_| "Unable to persist telemetry events")?;
@@ -463,8 +483,8 @@ fn apply_tracking(
 mod tests {
     use super::Database;
     use crate::models::{
-        CollectorHealth, ConnectionRecord, LiveTelemetrySnapshot, ProcessRecord, ServiceRecord,
-        TelemetryEvent,
+        CollectorHealth, CollectorStatus, ConnectionRecord, LiveTelemetrySnapshot, ProcessRecord,
+        ServiceRecord, TelemetryEvent,
     };
 
     fn snapshot(active: bool, with_event: bool) -> LiveTelemetrySnapshot {
@@ -479,13 +499,15 @@ mod tests {
                 executable_path: Some("C:\\sample.exe".into()),
                 command_line: Some("sample.exe --sensitive-argument must-not-be-persisted".into()),
                 cpu_percent: Some(1.5),
+                core_equivalent_cpu_percent: Some(12.0),
                 memory_bytes: 42,
                 start_time: Some("2026-08-16T11:00:00Z".into()),
                 thread_count: Some(2),
                 architecture: Some("x64".into()),
                 description: Some("Sample".into()),
-                publisher: None,
+                company: Some("Sample Company".into()),
                 signature_status: "unsigned".into(),
+                signer: None,
                 access_status: "available".into(),
                 first_seen: "2026-08-16T12:00:00Z".into(),
                 last_seen: "2026-08-16T12:00:00Z".into(),
@@ -504,6 +526,8 @@ mod tests {
                 pid: Some(7),
                 process_name: Some("sample.exe".into()),
                 executable_path: Some("C:\\sample.exe".into()),
+                association_status: "associated".into(),
+                process_last_seen: None,
                 first_seen: "2026-08-16T12:00:00Z".into(),
                 last_seen: "2026-08-16T12:00:00Z".into(),
                 observation_count: 1,
@@ -525,20 +549,29 @@ mod tests {
             }],
             events: with_event
                 .then(|| TelemetryEvent {
-                    id: "event-1".into(),
+                    event_id: "event-1".into(),
                     event_type: "connection_closed".into(),
-                    subject_type: "connection".into(),
-                    subject_key: "sample".into(),
+                    entity_type: "connection".into(),
+                    entity_key: "sample".into(),
+                    timestamp: "2026-08-16T12:00:01Z".into(),
+                    collector: "connections".into(),
+                    factual_payload: serde_json::json!({"message": "Connection is no longer observed"}),
+                    schema_version: 1,
                     message: "Connection is no longer observed".into(),
-                    occurred_at: "2026-08-16T12:00:01Z".into(),
                 })
                 .into_iter()
                 .collect(),
             collectors: vec![CollectorHealth {
                 id: "processes".into(),
-                status: "active".into(),
+                status: CollectorStatus::Healthy,
                 detail: "test".into(),
-                collected_at: "2026-08-16T12:00:00Z".into(),
+                last_success: Some("2026-08-16T12:00:00Z".into()),
+                last_attempt: "2026-08-16T12:00:00Z".into(),
+                duration_ms: 1,
+                observation_count: 1,
+                restricted_count: 0,
+                error_code: None,
+                error_message: None,
             }],
             issues: Vec::new(),
         }
@@ -547,7 +580,7 @@ mod tests {
     #[test]
     fn migrations_are_versioned_and_theme_round_trips() {
         let database = Database::in_memory().expect("database should initialize");
-        assert_eq!(database.status().expect("status").0, 2);
+        assert_eq!(database.status().expect("status").0, 3);
         database.set_theme("terminal").expect("theme should save");
         assert_eq!(database.get_theme().expect("theme should load"), "terminal");
     }
@@ -570,7 +603,7 @@ mod tests {
                 [],
             )
             .expect("Sprint 0 migration marker");
-        Database::migrate(&mut connection).expect("Sprint 1 migration");
+        Database::migrate(&mut connection).expect("Sprint 1.1 migrations");
         let version: i64 = connection
             .query_row("SELECT MAX(version) FROM schema_migrations", [], |row| {
                 row.get(0)
@@ -586,7 +619,7 @@ mod tests {
                 |row| row.get(0),
             )
             .expect("live telemetry tables");
-        assert_eq!(version, 2);
+        assert_eq!(version, 3);
         assert_eq!(live_tables, 4);
     }
 
