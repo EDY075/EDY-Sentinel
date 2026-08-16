@@ -31,9 +31,14 @@ function App() {
     setLoading(true)
     setError(null)
     try {
-      const [systemData, databaseData] = await Promise.all([getSystemOverview(), getDatabaseStatus()])
+      const systemData = await getSystemOverview()
       setOverview(systemData)
-      setDatabase(databaseData)
+      try {
+        setDatabase(await getDatabaseStatus())
+      } catch {
+        setDatabase(null)
+        setToast('Telemetry collected; persistence status is unavailable')
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason))
     } finally {
@@ -79,13 +84,13 @@ function App() {
         <div className="brand"><span className="brand-mark"><Shield size={21} strokeWidth={1.7} /></span><span className="brand-copy"><strong>EDY</strong><small>SENTINEL</small></span></div>
         <nav aria-label="Primary navigation">
           <span className="nav-label">Workspace</span>
-          {nav.map((item) => <Tooltip key={item.label} label={item.label}><button type="button" className="nav-item" data-active={item.active || undefined} disabled={!item.active} title={!item.active ? 'Planned for a future sprint' : undefined}><item.icon size={18} /><span>{item.label}</span>{item.active && <i />}</button></Tooltip>)}
+          {nav.map((item) => <Tooltip key={item.label} label={item.label}><button type="button" aria-label={item.label} className="nav-item" data-active={item.active || undefined} disabled={!item.active} title={!item.active ? 'Planned for a future sprint' : undefined}><item.icon size={18} /><span>{item.label}</span>{item.active && <i />}</button></Tooltip>)}
         </nav>
         <div className="sidebar-spacer" />
         <div className="sidebar-status"><span className="pulse" /><div><strong>Local mode</strong><small>No cloud connection</small></div></div>
         <div className="sidebar-bottom">
-          <button type="button" className="nav-item" disabled><CircleHelp size={18} /><span>Help center</span></button>
-          <button type="button" className="nav-item" disabled><Settings size={18} /><span>Settings</span></button>
+          <button type="button" aria-label="Help center" className="nav-item" disabled><CircleHelp size={18} /><span>Help center</span></button>
+          <button type="button" aria-label="Settings" className="nav-item" disabled><Settings size={18} /><span>Settings</span></button>
         </div>
         <button type="button" className="collapse-button" onClick={() => setCollapsed((value) => !value)} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}><ChevronLeft size={16} /></button>
       </aside>
@@ -96,15 +101,15 @@ function App() {
           <button type="button" className="search-trigger" onClick={() => setPaletteOpen(true)}><Search size={16} /><span>Search or run a command</span><kbd>Ctrl K</kbd></button>
           <div className="topbar-actions">
             <Tooltip label="Refresh telemetry"><IconButton aria-label="Refresh telemetry" onClick={refresh} disabled={loading}><RefreshCw size={17} className={loading ? 'spin' : ''} /></IconButton></Tooltip>
-            <div className="theme-anchor"><Tooltip label="Change theme"><IconButton aria-label="Change theme" onClick={() => setThemeOpen((open) => !open)}><Palette size={17} /></IconButton></Tooltip>{themeOpen && <ThemeMenu theme={theme} onChange={changeTheme} />}</div>
-            <Tooltip label="No new notifications"><IconButton aria-label="Notifications"><Bell size={17} /></IconButton></Tooltip>
+            <div className="theme-anchor"><Tooltip label="Change theme"><IconButton aria-label="Change theme" aria-haspopup="menu" aria-expanded={themeOpen} onClick={() => setThemeOpen((open) => !open)}><Palette size={17} /></IconButton></Tooltip>{themeOpen && <ThemeMenu theme={theme} onChange={changeTheme} onClose={() => setThemeOpen(false)} />}</div>
+            <Tooltip label="No new notifications"><IconButton aria-label="No new notifications" disabled><Bell size={17} /></IconButton></Tooltip>
             <span className="topbar-divider" />
-            <div className="connection-state"><Wifi size={15} /><span><strong>Protected locally</strong><small>Collectors on device</small></span></div>
+            <div className="connection-state"><Wifi size={15} /><span><strong>Local collectors active</strong><small>Observation on device</small></span></div>
           </div>
         </header>
 
         <main className="content">
-          <div className="page-heading"><div><p>Endpoint intelligence</p><h2>Good evening, {overview?.host.username ?? 'operator'}</h2><span>Review the current state of this Windows device.</span></div><button type="button" className="button button--primary" onClick={refresh} disabled={loading}><RefreshCw size={16} className={loading ? 'spin' : ''} /> Refresh telemetry</button></div>
+          <div className="page-heading"><div><p>Endpoint intelligence</p><h2>Welcome, {overview?.host.username ?? 'operator'}</h2><span>Review the current state of this Windows device.</span></div><button type="button" className="button button--primary" onClick={refresh} disabled={loading}><RefreshCw size={16} className={loading ? 'spin' : ''} /> Refresh telemetry</button></div>
           <Overview data={overview} database={database} loading={loading} error={error} onRefresh={refresh} />
         </main>
       </div>

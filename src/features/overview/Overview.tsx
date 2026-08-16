@@ -59,7 +59,7 @@ export function Overview({ data, database, loading, error, onRefresh }: Overview
           <p>{data.operatingSystem.name} · {data.host.architecture} · signed in as {data.host.username}</p>
         </div>
         <div className="hero-card__meta">
-          <Badge tone={data.issues.length ? 'warning' : 'good'}>{data.issues.length ? 'Partial collection' : 'All collectors ready'}</Badge>
+          <Badge tone={data.issues.length ? 'warning' : 'good'}>{data.issues.length ? 'Partial collection' : 'Local collectors active'}</Badge>
           <span>Updated {new Date(data.collectedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
         </div>
       </section>
@@ -104,13 +104,13 @@ export function Overview({ data, database, loading, error, onRefresh }: Overview
 
         <section className="panel score-panel">
           <header className="panel__header"><div><Gauge size={18} /><span><strong>Security Score</strong><small>Explainable assessment</small></span></div><Badge>Pending engine</Badge></header>
-          <div className="score-empty"><span className="score-empty__ring"><Gauge size={26} /></span><div><strong>Analysis engine not configured yet</strong><p>No score is shown until the baseline and detection engines can produce an evidence-backed result.</p></div></div>
+          <div className="score-empty"><span className="score-empty__ring"><Gauge size={26} /></span><div><strong>Security analysis engine not initialized</strong><p>No score is shown until the baseline and detection engines can produce an evidence-backed result.</p></div></div>
           <footer><StatusDot status={database?.writable ? 'online' : 'partial'} /><span>SQLite schema v{database?.schemaVersion ?? '—'} · {database?.writable ? 'Snapshots persist locally' : 'Persistence status unavailable'}</span></footer>
         </section>
       </div>
 
       {data.issues.length > 0 && <section className="collection-notice"><AlertTriangle size={17} /><div><strong>Some telemetry is unavailable</strong>{data.issues.map((issue) => <p key={issue.component}>{issue.component}: {issue.message}</p>)}</div></section>}
-      <p className="source-note">Collection source: {data.source}. Values are captured at refresh time and stored locally.</p>
+      <p className="source-note">Collection source: {data.source}. Values are captured locally; snapshot persistence status is shown above.</p>
     </div>
   )
 }

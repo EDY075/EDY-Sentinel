@@ -1,3 +1,4 @@
+import { useEffect, useId, useRef } from 'react'
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react'
 import { X } from 'lucide-react'
 
@@ -28,12 +29,32 @@ export function EmptyState({ title, description }: { title: string; description:
 }
 
 export function Dialog({ open, title, children, onClose }: { open: boolean; title: string; children: ReactNode; onClose: () => void }) {
+  const dialogRef = useRef<HTMLElement>(null)
+  const titleId = useId()
+  useEffect(() => {
+    if (!open) return
+    const previouslyFocused = document.activeElement as HTMLElement | null
+    const dialog = dialogRef.current
+    dialog?.focus()
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+      if (event.key !== 'Tab' || !dialog) return
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex="-1"])'))
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => { document.removeEventListener('keydown', onKeyDown); previouslyFocused?.focus() }
+  }, [onClose, open])
   if (!open) return null
   return (
     <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <section className="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+      <section ref={dialogRef} tabIndex={-1} className="dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <header>
-          <h2 id="dialog-title">{title}</h2>
+          <h2 id={titleId}>{title}</h2>
           <IconButton aria-label="Close dialog" onClick={onClose}><X size={18} /></IconButton>
         </header>
         {children}
@@ -53,7 +74,8 @@ export function Drawer({ open, title, children, onClose }: { open: boolean; titl
 }
 
 export function Tooltip({ label, children }: { label: string; children: ReactNode }) {
-  return <span className="tooltip" data-tooltip={label}>{children}</span>
+  const tooltipId = useId()
+  return <span className="tooltip" aria-describedby={tooltipId}>{children}<span id={tooltipId} className="tooltip__content" role="tooltip">{label}</span></span>
 }
 
 export function Sparkline({ points, ...props }: { points: number[] } & HTMLAttributes<SVGElement>) {

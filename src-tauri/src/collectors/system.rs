@@ -59,8 +59,22 @@ pub fn collect(
         physical_cores: System::physical_core_count(),
         frequency_mhz: cpus.first().map(|cpu| cpu.frequency()).unwrap_or_default(),
     };
+    if cpu.model == "Unavailable" || cpu.logical_cores == 0 {
+        issues.push(CollectionIssue {
+            component: "cpu".into(),
+            message: "Processor identity or core count is unavailable".into(),
+        });
+    }
 
     let gpus = match collect_gpus() {
+        Ok(items) if items.is_empty() => {
+            issues.push(CollectionIssue {
+                component: "gpu".into(),
+                message: "No display adapter was returned by Windows Management Instrumentation"
+                    .into(),
+            });
+            Vec::new()
+        }
         Ok(items) => items,
         Err(_) => {
             issues.push(CollectionIssue {
@@ -71,7 +85,7 @@ pub fn collect(
         }
     };
 
-    let disks = Disks::new_with_refreshed_list()
+    let disks: Vec<DiskInfo> = Disks::new_with_refreshed_list()
         .iter()
         .map(|disk| DiskInfo {
             name: disk.name().to_string_lossy().to_string(),
@@ -82,16 +96,55 @@ pub fn collect(
             removable: disk.is_removable(),
         })
         .collect();
+    if disks.is_empty() {
+        issues.push(CollectionIssue {
+            component: "storage".into(),
+            message: "No local volumes were returned by the Windows storage APIs".into(),
+        });
+    }
+
+    let host = HostInfo {
+        hostname: System::host_name().unwrap_or_else(|| "Unavailable".into()),
+        username: std::env::var("USERNAME").unwrap_or_else(|_| "Unavailable".into()),
+        architecture: std::env::consts::ARCH.into(),
+        uptime_seconds: System::uptime(),
+    };
+    if host.hostname == "Unavailable" || host.username == "Unavailable" {
+        issues.push(CollectionIssue {
+            component: "host".into(),
+            message: "Hostname or signed-in user is unavailable".into(),
+        });
+    }
+
+    let memory = MemoryInfo {
+        total_bytes: system.total_memory(),
+        used_bytes: system.used_memory(),
+    };
+    if memory.total_bytes == 0 || memory.used_bytes > memory.total_bytes {
+        issues.push(CollectionIssue {
+            component: "memory".into(),
+            message: "Windows returned incomplete memory capacity data".into(),
+        });
+    }
+
+    let network = network_result.0;
+    if network.primary_interface.is_none() || network.primary_ipv4.is_none() {
+        issues.push(CollectionIssue {
+            component: "network".into(),
+            message: "No primary interface with an IPv4 address was detected".into(),
+        });
+    }
+    if network.gateways.is_empty() || network.dns_servers.is_empty() {
+        issues.push(CollectionIssue {
+            component: "network-route".into(),
+            message: "Default gateway or DNS resolver details are incomplete".into(),
+        });
+    }
 
     Ok(SystemOverview {
         collected_at: Utc::now().to_rfc3339(),
         source: "Windows Registry, WMI, IP Helper and native system APIs".into(),
-        host: HostInfo {
-            hostname: System::host_name().unwrap_or_else(|| "Unavailable".into()),
-            username: std::env::var("USERNAME").unwrap_or_else(|_| "Unavailable".into()),
-            architecture: std::env::consts::ARCH.into(),
-            uptime_seconds: System::uptime(),
-        },
+        host,
         operating_system: OperatingSystemInfo {
             name: windows_name,
             edition,
@@ -100,12 +153,9 @@ pub fn collect(
         },
         cpu,
         gpus,
-        memory: MemoryInfo {
-            total_bytes: system.total_memory(),
-            used_bytes: system.used_memory(),
-        },
+        memory,
         disks,
-        network: network_result.0,
+        network,
         issues,
     })
 }

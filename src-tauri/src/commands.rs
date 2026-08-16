@@ -1,6 +1,6 @@
 use crate::{
     collectors,
-    models::{Capability, DatabaseStatus, SystemOverview, ThemeInput},
+    models::{Capability, CollectionIssue, DatabaseStatus, SystemOverview, ThemeInput},
     persistence::Database,
 };
 use tauri::State;
@@ -9,10 +9,15 @@ const THEMES: [&str; 4] = ["sentinel-blue", "cyber-green", "terminal", "spectrum
 
 #[tauri::command]
 pub async fn get_system_overview(database: State<'_, Database>) -> Result<SystemOverview, String> {
-    let overview = tauri::async_runtime::spawn_blocking(collectors::collect_overview)
+    let mut overview = tauri::async_runtime::spawn_blocking(collectors::collect_overview)
         .await
         .map_err(|_| "System collection task failed".to_string())??;
-    database.save_snapshot(&overview)?;
+    if database.save_snapshot(&overview).is_err() {
+        overview.issues.push(CollectionIssue {
+            component: "persistence".into(),
+            message: "Telemetry was collected, but the local snapshot could not be saved".into(),
+        });
+    }
     Ok(overview)
 }
 
