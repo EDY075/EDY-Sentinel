@@ -14,6 +14,8 @@ import securityEn from './locales/en/security'
 import servicesEn from './locales/en/services'
 import shellEn from './locales/en/shell'
 import telemetryEn from './locales/en/telemetry'
+import inventoryEn from './locales/en/inventory'
+import vulnerabilitiesEn from './locales/en/vulnerabilities'
 import { common as commonPtBR } from './locales/pt-BR/common'
 import { errors as errorsPtBR } from './locales/pt-BR/errors'
 import { navigation as navigationPtBR } from './locales/pt-BR/navigation'
@@ -30,11 +32,13 @@ import securityPtBR from './locales/pt-BR/security'
 import servicesPtBR from './locales/pt-BR/services'
 import shellPtBR from './locales/pt-BR/shell'
 import telemetryPtBR from './locales/pt-BR/telemetry'
+import inventoryPtBR from './locales/pt-BR/inventory'
+import vulnerabilitiesPtBR from './locales/pt-BR/vulnerabilities'
 
 export const namespaces = [
   'common', 'navigation', 'settings', 'errors', 'shell', 'overview', 'processes',
   'connections', 'services', 'baseline', 'telemetry', 'events', 'detections',
-  'rules', 'score', 'security',
+  'rules', 'score', 'security', 'inventory', 'vulnerabilities',
 ] as const
 export type TranslationNamespace = (typeof namespaces)[number]
 
@@ -56,6 +60,8 @@ export const resources = {
     rules: rulesEn,
     score: scoreEn,
     security: securityEn,
+    inventory: inventoryEn,
+    vulnerabilities: vulnerabilitiesEn,
   },
   'pt-BR': {
     common: commonPtBR,
@@ -74,6 +80,8 @@ export const resources = {
     rules: rulesPtBR,
     score: scorePtBR,
     security: securityPtBR,
+    inventory: inventoryPtBR,
+    vulnerabilities: vulnerabilitiesPtBR,
   },
 } as const
 

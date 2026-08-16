@@ -10,6 +10,8 @@ mod detection_query;
 mod event_query;
 #[cfg(windows)]
 mod host_identity;
+#[cfg(windows)]
+mod inventory;
 mod models;
 mod persistence;
 pub mod rules;
@@ -17,8 +19,11 @@ pub mod rules;
 mod score;
 #[cfg(windows)]
 mod telemetry;
+#[cfg(windows)]
+mod vulnerability;
 
 use persistence::Database;
+use std::sync::Arc;
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -29,12 +34,16 @@ pub fn run() {
             std::fs::create_dir_all(&app_data)?;
             let database = Database::open(app_data.join("sentinel.db"))?;
             #[cfg(windows)]
+            vulnerability::recover_interrupted_syncs(&database)?;
+            #[cfg(windows)]
             let detection = {
                 let engine = detection::DetectionEngine;
                 engine.initialize(&database, rules::registry())?;
                 engine
             };
             app.manage(database);
+            #[cfg(windows)]
+            app.manage(Arc::new(vulnerability::VulnerabilitySyncManager::default()));
             #[cfg(windows)]
             app.manage(baseline::BaselineEngine::default());
             #[cfg(windows)]
@@ -69,6 +78,11 @@ pub fn run() {
             commands::get_detection_rules,
             commands::set_detection_rule_enabled,
             commands::get_security_score,
+            commands::get_software_inventory,
+            commands::refresh_software_inventory,
+            commands::get_vulnerability_provider_status,
+            commands::sync_vulnerability_provider,
+            commands::cancel_vulnerability_sync,
         ])
         .run(tauri::generate_context!())
         .expect("EDY Sentinel failed to start");

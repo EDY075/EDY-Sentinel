@@ -15,7 +15,9 @@ Rust domain models
   -> BaselineEngine (versioned learning, factual comparison, deduplication)
   -> DetectionEngine (versioned rules, bounded delta correlation, provenance)
   -> ScoreEngine (coverage gate, explainable penalties, versioned snapshots)
-  -> SQLite repository (migrations, observations, baselines, events, detections, score)
+  -> native Software Inventory (on-demand Registry collection, factual change tracking)
+  -> NVD / CISA KEV providers (bounded HTTPS sync, validation, local cache)
+  -> SQLite repository (migrations, observations, baselines, events, detections, score, inventory, vulnerability data)
 ```
 
 ## Frontend responsibilities
@@ -33,6 +35,8 @@ Rust domain models
 - `src/features/rules`: read-only rule metadata and the local enabled switch
 - `src/features/score`: current Security Score and its complete breakdown
 - `src/features/security`: Detections/Events workspace and bounded cursor pager
+- `src/features/inventory`: installed-software table, filters, sorting, and detail drawer
+- `src/features/settings`: language preference and vulnerability-provider status/actions
 - `src/features/theme`: four token-based theme choices
 - `src/components/ui`: reusable badge, status, skeleton, dialog, drawer, tooltip, and chart primitives
 - `src/lib/tauri.ts`: the only frontend IPC entry point
@@ -60,6 +64,10 @@ The frontend cannot execute SQL, WMI, Registry reads, shell commands, or arbitra
   reopen/status policy, evidence snapshots, and append-only detection history
 - `detection_query.rs`: parameterized keyset pagination and evidence queries
 - `score.rs`: formula-v1 coverage gate, grouped penalties, immutable snapshots, and retention
+- `inventory.rs`: native HKLM/HKCU 64/32-bit inventory, conservative identity,
+  snapshot persistence, and factual installed/removed/version-changed events
+- `vulnerability.rs`: dedicated NVD and CISA KEV HTTPS providers, validation, bounded sync,
+  cancellation, incremental cache writes, and provider lifecycle
 - `commands.rs`: narrow Tauri commands and input validation
 - `models.rs`: serialization contracts
 - `persistence/mod.rs`: SQLite lifecycle, migrations, snapshots, and settings
@@ -101,7 +109,7 @@ Collectors do not know about React. The persistence layer does not accept SQL fr
 
 ## Persistence
 
-SQLite opens from Tauri's `app_data_dir`. Startup enables foreign keys, WAL, and a busy timeout, then applies each migration transactionally. `schema_migrations` is the single version ledger. Current schema version: 6.
+SQLite opens from Tauri's `app_data_dir`. Startup enables foreign keys, WAL, and a busy timeout, then applies each migration transactionally. `schema_migrations` is the single version ledger. Current schema version: 7.
 
 Tables prepared in Sprint 0: `system_snapshots`, `network_snapshots`, `devices`, `alerts`, `security_events`, `settings`, and `integrations`. Integration secrets are not stored in the database; only a future `secret_ref` may be stored.
 
@@ -138,6 +146,11 @@ events referenced by detection evidence. Rule evaluation runs in its own analysi
 so a detection failure cannot put the behavioral baseline into Error. The migration seeds the
 checkpoint at the current factual-history maximum: pre-v6 events remain facts and are not
 retroactively classified by a new rule version.
+
+Sprint 3 Part 1 migration 0007 adds inventory snapshots/current rows/append-only observations,
+factual software-change events, minimal NVD and CISA KEV caches, and provider state. Inventory
+facts remain severity-free. The NVD cache retains CVE metadata, CVSS, weaknesses, essential
+references, and bounded CPE applicability needed by a future matcher; no match is produced yet.
 
 ## Behavioral baseline and security events
 
@@ -203,9 +216,22 @@ Pause freezes automatic collection at the latest snapshot while keeping the UI,
 filters, sorting, and drawers navigable. Resume performs the next normal collection.
 Manual refresh remains available in both states.
 
+## Software inventory and vulnerability repositories
+
+Inventory is explicitly outside the live telemetry cadence. Opening Inventory seeds an empty
+repository once; further collection is manual. Original Registry values are retained, while
+normalization stays separate. Strict product-code + install-scope equality is the only cross-key
+deduplication rule; name similarity is never evidence of identity.
+
+NVD and CISA KEV synchronization runs on Tauri blocking workers. Both providers use an HTTPS-only
+client, bounded response bodies, payload validation, parameterized SQLite writes, sanitized errors,
+and cooperative cancellation. NVD respects public rate limits and uses last-modified windows for
+incremental updates. CISA KEV uses an independent authoritative replacement transaction. Neither
+provider receives endpoint data, and the UI uses the resulting cache offline.
+
 ## Planned module seams
 
-Software inventory, device discovery, vulnerability, threat intelligence, alerts, reports,
+Device discovery, software-to-CVE matching, additional threat intelligence, alerts, reports,
 integrations, and automated response remain architectural seams only.
 Empty fake implementations are deliberately absent.
 
@@ -217,3 +243,4 @@ Empty fake implementations are deliberately absent.
 - `docs/adr/0004-live-telemetry-and-retention.md`
 - `docs/adr/0005-telemetry-accuracy-semantics.md`
 - `docs/adr/0006-behavioral-baseline-and-factual-events.md`
+- `docs/adr/0007-software-inventory-and-local-vulnerability-repositories.md`

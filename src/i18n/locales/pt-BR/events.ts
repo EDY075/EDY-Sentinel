@@ -8,9 +8,9 @@ export default {
     ignored: 'Ignorado',
   },
   confidence: { low: 'Baixa', medium: 'Média', high: 'Alta' },
-  entityTypes: { process: 'Processo', connection: 'Conexão', system: 'Sistema', executable: 'Executável', process_pattern: 'Padrão de processo', process_relationship: 'Relação de processos', network_destination: 'Destino de rede', service: 'Serviço', network_configuration: 'Configuração de rede' },
-  collectorSources: { system: 'Sistema', processes: 'Processos', connections: 'Conexões', services: 'Serviços', network: 'Rede' },
-  evidenceFields: { process: 'Processo', executableKey: 'Chave do executável', path: 'Caminho', company: 'Empresa', signer: 'Signatário', signatureStatus: 'Status da assinatura', fileSize: 'Tamanho do arquivo', fileModifiedAt: 'Arquivo modificado em', firstObserved: 'Primeira observação', parentExecutableKey: 'Chave do executável pai', parentProcess: 'Processo pai', user: 'Usuário', architecture: 'Arquitetura', parent: 'Processo pai', parentPath: 'Caminho do processo pai', child: 'Processo filho', childExecutableKey: 'Chave do executável filho', childPath: 'Caminho do processo filho', remoteIp: 'IP remoto', remotePort: 'Porta remota', protocol: 'Protocolo', association: 'Associação', serviceKey: 'Chave do serviço', serviceName: 'Nome do serviço', displayName: 'Nome de exibição', startupType: 'Tipo de inicialização', binaryPath: 'Caminho do binário', account: 'Conta', field: 'Campo', before: 'Antes', after: 'Depois', lastKnownStartupType: 'Último tipo de inicialização conhecido', firstObservedMissing: 'Primeira observação ausente', beforeAddress: 'Endereço anterior', afterAddress: 'Novo endereço', beforeInterface: 'Interface anterior', afterInterface: 'Nova interface', beforeMetric: 'Métrica anterior', afterMetric: 'Nova métrica', interfaceType: 'Tipo de interface', status: 'Status', runtimePid: 'PID em execução', correlationCycle: 'Ciclo de correlação' },
+  entityTypes: { process: 'Processo', connection: 'Conexão', system: 'Sistema', executable: 'Executável', process_pattern: 'Padrão de processo', process_relationship: 'Relação de processos', network_destination: 'Destino de rede', service: 'Serviço', network_configuration: 'Configuração de rede', software: 'Software' },
+  collectorSources: { system: 'Sistema', processes: 'Processos', connections: 'Conexões', services: 'Serviços', network: 'Rede', software_inventory: 'Inventário de Software' },
+  evidenceFields: { process: 'Processo', executableKey: 'Chave do executável', path: 'Caminho', company: 'Empresa', signer: 'Signatário', signatureStatus: 'Status da assinatura', fileSize: 'Tamanho do arquivo', fileModifiedAt: 'Arquivo modificado em', firstObserved: 'Primeira observação', parentExecutableKey: 'Chave do executável pai', parentProcess: 'Processo pai', user: 'Usuário', architecture: 'Arquitetura', parent: 'Processo pai', parentPath: 'Caminho do processo pai', child: 'Processo filho', childExecutableKey: 'Chave do executável filho', childPath: 'Caminho do processo filho', remoteIp: 'IP remoto', remotePort: 'Porta remota', protocol: 'Protocolo', association: 'Associação', serviceKey: 'Chave do serviço', serviceName: 'Nome do serviço', displayName: 'Nome de exibição', displayVersion: 'Versão exibida', publisher: 'Fabricante', installScope: 'Escopo de instalação', sources: 'Fontes do Registro', registryIdentities: 'Identidades no Registro', productCode: 'Código do produto', version: 'Versão', beforeVersion: 'Versão anterior', afterVersion: 'Nova versão', lastKnownVersion: 'Última versão conhecida', startupType: 'Tipo de inicialização', binaryPath: 'Caminho do binário', account: 'Conta', field: 'Campo', before: 'Antes', after: 'Depois', lastKnownStartupType: 'Último tipo de inicialização conhecido', firstObservedMissing: 'Primeira observação ausente', beforeAddress: 'Endereço anterior', afterAddress: 'Novo endereço', beforeInterface: 'Interface anterior', afterInterface: 'Nova interface', beforeMetric: 'Métrica anterior', afterMetric: 'Nova métrica', interfaceType: 'Tipo de interface', status: 'Status', runtimePid: 'PID em execução', correlationCycle: 'Ciclo de correlação' },
   baselineFields: { comparison: 'Comparação', baselineVersion: 'Versão da baseline' },
   transitions: { first_observed: 'Observado pela primeira vez', status_changed: 'Status alterado', inactive: 'Inativo', reactivated: 'Reativado' },
   eventTypes: {
@@ -26,6 +26,9 @@ export default {
     primary_route_changed: 'Rota primária alterada',
     gateway_changed: 'Gateway padrão alterado',
     dns_changed: 'Configuração dos resolvedores DNS alterada',
+    software_installed: 'Software instalado',
+    software_removed: 'Software removido',
+    software_version_changed: 'Versão do software instalado alterada',
   },
   titles: {
     executable_first_seen: 'Novo executável observado',
@@ -40,6 +43,9 @@ export default {
     primary_route_changed: 'Rota primária alterada',
     gateway_changed: 'Gateway padrão alterado',
     dns_changed: 'Configuração dos resolvedores DNS alterada',
+    software_installed: 'Software instalado',
+    software_removed: 'Software removido',
+    software_version_changed: 'Versão do software instalado alterada',
   },
   filters: {
     ariaLabel: 'Filtros de status dos eventos',

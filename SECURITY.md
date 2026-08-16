@@ -94,6 +94,27 @@ Rust or npm vulnerability was reported in the final audit, but these upgrade deb
 
 Secrets must be stored in Windows Credential Manager. SQLite may contain only a non-secret reference. Secrets must never enter React state, logs, `.env`, command-line arguments, snapshots, or Git.
 
+## Sprint 3 Part 1 inventory and provider posture
+
+- Installed software is read directly from the current user's accessible HKLM/HKCU uninstall
+  Registry views. No PowerShell, shell command, elevation, uninstall string execution, or system
+  mutation is used.
+- Missing Registry fields remain absent. Similar display names are not merged, and an unresolved
+  normalized identity is never guessed into a product or CVE.
+- Software installed/removed/version-changed records are facts without severity. They do not
+  affect Detection rules or Security Score in Part 1.
+- NVD and CISA KEV are isolated HTTPS-only download providers. Endpoint inventory, paths, users,
+  host identity, and telemetry are never sent to either service.
+- External responses have fixed size/record/string bounds and validated CVE/date/pagination data.
+  Retries, backoff, public rate limits, timeouts, cooperative cancellation, and sanitized UI errors
+  are enforced in Rust.
+- The interface contains no API key. A future NVD key must use Windows Credential Manager and
+  remain outside React, SQLite, logs, command lines, reports, and Git.
+- Repository writes are transactional and independent from baseline/detection transactions. An
+  external outage preserves existing cache rows and cannot poison the behavioral baseline.
+- KEV membership is exploitation context only; it does not independently imply that local
+  software is affected or that severity is Critical.
+
 ## Data classification
 
 Snapshots contain local host, user, hardware, storage, process identity, executable

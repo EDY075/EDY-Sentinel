@@ -27,6 +27,10 @@ const MIGRATIONS: &[(i64, &str)] = &[
         6,
         include_str!("../../migrations/0006_detection_engine.sql"),
     ),
+    (
+        7,
+        include_str!("../../migrations/0007_software_inventory_vulnerability_repository.sql"),
+    ),
 ];
 
 #[derive(Clone)]
@@ -516,6 +520,36 @@ impl Database {
         Ok(value)
     }
 
+    /// Repository reads keep the concrete SQLite error available to callers
+    /// that need to compose several fallible statements before translating the
+    /// failure at the IPC boundary.
+    pub(crate) fn repository_read<T>(
+        &self,
+        operation: impl FnOnce(&Connection) -> rusqlite::Result<T>,
+    ) -> rusqlite::Result<T> {
+        let connection = self
+            .connection
+            .lock()
+            .map_err(|_| rusqlite::Error::InvalidQuery)?;
+        operation(&connection)
+    }
+
+    /// Inventory and vulnerability repository writes are independent from the
+    /// baseline lifecycle and retain typed SQLite errors until their boundary.
+    pub(crate) fn repository_transaction<T>(
+        &self,
+        operation: impl FnOnce(&Transaction<'_>) -> rusqlite::Result<T>,
+    ) -> rusqlite::Result<T> {
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| rusqlite::Error::InvalidQuery)?;
+        let transaction = connection.transaction()?;
+        let value = operation(&transaction)?;
+        transaction.commit()?;
+        Ok(value)
+    }
+
     pub(crate) fn baseline_engine_transaction<T>(
         &self,
         operation: impl FnOnce(&Transaction<'_>) -> Result<T, String>,
@@ -720,7 +754,7 @@ mod tests {
     #[test]
     fn migrations_are_versioned_and_preferences_round_trip() {
         let database = Database::in_memory().expect("database should initialize");
-        assert_eq!(database.status().expect("status").0, 6);
+        assert_eq!(database.status().expect("status").0, 7);
         database.set_theme("terminal").expect("theme should save");
         assert_eq!(database.get_theme().expect("theme should load"), "terminal");
         assert_eq!(database.get_language().expect("language query"), None);
@@ -751,7 +785,7 @@ mod tests {
                 [],
             )
             .expect("Sprint 0 migration marker");
-        Database::migrate(&mut connection).expect("Sprint 2 hardening migrations");
+        Database::migrate(&mut connection).expect("current migrations");
         let version: i64 = connection
             .query_row("SELECT MAX(version) FROM schema_migrations", [], |row| {
                 row.get(0)
@@ -817,13 +851,26 @@ mod tests {
                 |row| row.get(0),
             )
             .expect("detection tables");
-        assert_eq!(version, 6);
+        let sprint_three_tables: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN (
+                    'software_inventory_snapshots', 'installed_software',
+                    'software_inventory_observations', 'software_inventory_events',
+                    'nvd_vulnerabilities', 'cisa_kev_vulnerabilities',
+                    'vulnerability_provider_state'
+                )",
+                [],
+                |row| row.get(0),
+            )
+            .expect("Sprint 3 foundation tables");
+        assert_eq!(version, 7);
         assert_eq!(live_tables, 4);
         assert_eq!(baseline_tables, 7);
         assert_eq!(event_columns, 11);
         assert_eq!(hardening_columns, 2);
         assert_eq!(history_table, 1);
         assert_eq!(detection_tables, 7);
+        assert_eq!(sprint_three_tables, 7);
     }
 
     #[test]
@@ -879,6 +926,46 @@ mod tests {
                 .expect("integrity"),
             "ok"
         );
+    }
+
+    #[test]
+    fn sprint_three_foundation_is_integral_and_keeps_facts_without_severity() {
+        let database = Database::in_memory().expect("database should initialize");
+        let connection = database.connection.lock().expect("connection lock");
+        let providers: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM vulnerability_provider_state
+                 WHERE provider IN ('nvd', 'cisa_kev') AND status = 'idle'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("provider state seeds");
+        let severity_columns: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('software_inventory_events')
+                 WHERE name = 'severity'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("factual event columns");
+        assert_eq!(providers, 2);
+        assert_eq!(severity_columns, 0);
+        assert!(connection
+            .execute(
+                "UPDATE vulnerability_provider_state SET status='invented' WHERE provider='nvd'",
+                [],
+            )
+            .is_err());
+        let foreign_key_issues: i64 = connection
+            .query_row("SELECT COUNT(*) FROM pragma_foreign_key_check", [], |row| {
+                row.get(0)
+            })
+            .expect("foreign key check");
+        let integrity: String = connection
+            .query_row("PRAGMA integrity_check", [], |row| row.get(0))
+            .expect("integrity check");
+        assert_eq!(foreign_key_issues, 0);
+        assert_eq!(integrity, "ok");
     }
 
     #[test]

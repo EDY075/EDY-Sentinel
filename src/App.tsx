@@ -16,10 +16,11 @@ import { SecurityWorkspace } from './features/security/SecurityWorkspace'
 import type { SecuritySection } from './features/security/SecurityWorkspace'
 import { ScoreBreakdownDrawer } from './features/score/ScoreBreakdownDrawer'
 import { SettingsView } from './features/settings/SettingsView'
+import { InventoryView } from './features/inventory/InventoryView'
 import { loadTheme, persistTheme } from './lib/tauri'
 import type { ThemeName } from './types/system'
 
-type Page = 'overview' | 'services' | 'network' | 'processes' | 'events' | 'settings'
+type Page = 'overview' | 'services' | 'network' | 'processes' | 'inventory' | 'events' | 'settings'
 
 function App() {
   const { t, i18n } = useTranslation(['shell', 'navigation', 'common', 'settings', 'errors'])
@@ -41,7 +42,7 @@ function App() {
     { label: t('navigation:system'), icon: Gauge, page: 'services' },
     { label: t('navigation:network'), icon: Network, page: 'network' },
     { label: t('navigation:activity'), icon: Activity, page: 'processes' },
-    { label: t('navigation:inventory'), icon: Boxes },
+    { label: t('navigation:inventory'), icon: Boxes, page: 'inventory' },
     { label: t('navigation:events'), icon: FileText, page: 'events' },
   ]
   const translatedHeading = (key: string) => ({
@@ -55,6 +56,7 @@ function App() {
     processes: translatedHeading('processes'),
     network: translatedHeading('network'),
     services: translatedHeading('services'),
+    inventory: translatedHeading('inventory'),
     events: translatedHeading('events'),
     settings: translatedHeading('settings'),
   }
@@ -118,6 +120,7 @@ function App() {
     { label: t('shell:commands.processes.label'), detail: t('shell:commands.processes.detail'), icon: Activity, run: () => openPage('processes') },
     { label: t('shell:commands.connections.label'), detail: t('shell:commands.connections.detail'), icon: Network, run: () => openPage('network') },
     { label: t('shell:commands.services.label'), detail: t('shell:commands.services.detail'), icon: Gauge, run: () => openPage('services') },
+    { label: t('shell:commands.inventory.label'), detail: t('shell:commands.inventory.detail'), icon: Boxes, run: () => openPage('inventory') },
     { label: t('shell:commands.detections.label'), detail: t('shell:commands.detections.detail'), icon: ShieldAlert, run: () => openSecurity('detections') },
     { label: t('shell:commands.events.label'), detail: t('shell:commands.events.detail'), icon: FileText, run: () => openSecurity('events') },
     { label: t('shell:commands.score.label'), detail: t('shell:commands.score.detail'), icon: Gauge, run: () => { openPage('overview'); setScoreOpen(true) } },
@@ -160,15 +163,16 @@ function App() {
         </header>
 
         <main className="content">
-          <div className="page-heading"><div><p>{heading.eyebrow}</p><h2>{page === 'overview' ? t('shell:welcome', { username: overview?.host.username ?? t('shell:operator') }) : heading.title}</h2><span>{heading.description}</span></div>{page !== 'settings' && <button type="button" className="button button--primary" onClick={runRefresh} disabled={refreshing}><RefreshCw size={16} className={refreshing ? 'spin' : ''} /> {t('shell:refresh')}</button>}</div>
+          <div className="page-heading"><div><p>{heading.eyebrow}</p><h2>{page === 'overview' ? t('shell:welcome', { username: overview?.host.username ?? t('shell:operator') }) : heading.title}</h2><span>{heading.description}</span></div>{page !== 'settings' && page !== 'inventory' && <button type="button" className="button button--primary" onClick={runRefresh} disabled={refreshing}><RefreshCw size={16} className={refreshing ? 'spin' : ''} /> {t('shell:refresh')}</button>}</div>
           <div className="operational-layout">
-            {page !== 'settings' && <CollectorStrip health={health} live={live} refreshing={refreshing} onLiveChange={setLiveWithToast} onRefresh={runRefresh} />}
+            {page !== 'settings' && page !== 'inventory' && <CollectorStrip health={health} live={live} refreshing={refreshing} onLiveChange={setLiveWithToast} onRefresh={runRefresh} />}
             {page === 'overview' && <Overview data={overview} database={database} loading={loading} error={error} onRefresh={refresh} baseline={baseline} onBaselineAction={setBaselineAction} onOpenEvents={() => openSecurity('events')} securityScore={securityScore} onOpenScore={() => setScoreOpen(true)} />}
-            {page !== 'overview' && page !== 'events' && page !== 'settings' && loading && !snapshot && <OperationalLoading label={t('shell:loading')} />}
-            {page !== 'overview' && page !== 'events' && page !== 'settings' && !loading && !snapshot && <div className="error-state"><span><Activity size={20} /></span><div><strong>{t('shell:telemetryUnavailable.title')}</strong><p>{t(error ? 'errors:telemetryUnavailable' : 'shell:telemetryUnavailable.description')}</p></div><button type="button" className="button" onClick={runRefresh}>{t('shell:telemetryUnavailable.retry')}</button></div>}
+            {page !== 'overview' && page !== 'events' && page !== 'settings' && page !== 'inventory' && loading && !snapshot && <OperationalLoading label={t('shell:loading')} />}
+            {page !== 'overview' && page !== 'events' && page !== 'settings' && page !== 'inventory' && !loading && !snapshot && <div className="error-state"><span><Activity size={20} /></span><div><strong>{t('shell:telemetryUnavailable.title')}</strong><p>{t(error ? 'errors:telemetryUnavailable' : 'shell:telemetryUnavailable.description')}</p></div><button type="button" className="button" onClick={runRefresh}>{t('shell:telemetryUnavailable.retry')}</button></div>}
             {page === 'processes' && snapshot && <ProcessesView processes={snapshot.processes} connections={snapshot.connections} currentUser={overview?.host.username} />}
             {page === 'network' && snapshot && <ConnectionsView connections={snapshot.connections} />}
             {page === 'services' && snapshot && <ServicesView services={snapshot.services} />}
+            {page === 'inventory' && <InventoryView />}
             {page === 'events' && <SecurityWorkspace section={securitySection} revision={securityRevision} error={securityError} onSectionChange={setSecuritySection} onRefresh={refreshSecurity} onEventStatusChange={setEventStatus} onDetectionStatusChange={setDetectionStatus} />}
             {page === 'settings' && <SettingsView />}
           </div>

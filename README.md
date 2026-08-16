@@ -1,6 +1,6 @@
 # EDY Sentinel
 
-EDY Sentinel is a local-first Windows security observability desktop. Through Sprint 2C,
+EDY Sentinel is a local-first Windows security observability desktop. Through Sprint 3 Part 1,
 it combines hardened live endpoint telemetry, a versioned behavioral baseline, factual
 security events, six explainable detection rules, Security Score v1, and a fully localized
 English/Português (Brasil) interface. The application retains explicit accuracy semantics,
@@ -21,6 +21,10 @@ reported as unavailable, and every detection remains tied to factual local evide
 - Real TCP/UDP IPv4/IPv6 bindings and connections with PID-reuse-safe association,
   recent-process correlation, and explicit unresolved/system states
 - Real read-only Windows service state, startup configuration, account, binary, and live PID
+- Native installed-software inventory across machine/user and 64/32-bit Registry views, with
+  conservative identity, careful deduplication, snapshots, and factual change tracking
+- User-initiated local NVD and CISA KEV repositories with bounded HTTPS synchronization,
+  incremental cache updates, cancellation, provider status, and offline reuse
 - Live pause/resume, versioned factual change events, deduplicated tracking, collector
   execution health, and separately reported data coverage
 - Local Learning/Ready behavioral baselines for executables, process relationships,
@@ -34,7 +38,8 @@ reported as unavailable, and every detection remains tied to factual local evide
   Windows-locale initialization, English fallback, pluralization, and locale-aware dates/numbers
 - Sentinel Blue, Cyber Green, Terminal, and Spectrum themes
 - Compact/expanded navigation, command palette, toast, loading, empty, partial, and error states
-- Least-privilege Tauri application with a restrictive CSP and no external service dependency
+- Least-privilege Tauri application with a restrictive CSP; endpoint telemetry remains local,
+  while vulnerability repositories contact only their explicit authoritative HTTPS providers
 
 ## Requirements
 
@@ -66,9 +71,10 @@ workflow, [ARCHITECTURE.md](ARCHITECTURE.md) for module boundaries, and
 
 ## Privacy
 
-Telemetry, behavioral baselines, detections, and language preferences never leave the device
-through Sprint 2C. The application has no API keys,
-analytics, cloud integration, scanner, or artificial intelligence module. Process
+Telemetry, installed-software data, behavioral baselines, detections, and language preferences
+never leave the device. NVD/CISA synchronization downloads public records but uploads no endpoint
+inventory. The application has no API keys, analytics, cloud integration, scanner, or artificial
+intelligence module. Process
 command lines are shown only when Windows exposes them and are not persisted.
 
 Service PID is live runtime telemetry and is not part of persistent service identity in the
@@ -88,6 +94,6 @@ from that short baseline are not suitable for production rule calibration.
 
 ## Scope boundary
 
-Threat intelligence services, geolocation/reputation, active response, advanced network
-scanning, CVE matching, AI, and native Windows notifications remain intentionally outside
-Sprint 2C. See [ROADMAP.md](ROADMAP.md).
+Software-to-CVE matching, geolocation/reputation, active response, advanced network scanning,
+AI, and native Windows notifications remain intentionally outside Sprint 3 Part 1. NVD records
+and KEV membership are stored as source facts only. See [ROADMAP.md](ROADMAP.md).

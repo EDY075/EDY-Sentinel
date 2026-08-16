@@ -68,6 +68,18 @@
 - Real Tauri review in both languages across five desktop resolutions and all four themes
 - Eight release screenshots kept outside Git and complete frontend/Rust/release quality gates
 
+## Sprint 3 Part 1 — Inventory and vulnerability data foundations (complete)
+
+- Native on-demand installed-software inventory from HKLM/HKCU 64/32-bit Registry views
+- Conservative normalized identity, strict product-code/scope deduplication, and raw-value retention
+- Virtualized bilingual Inventory UI with search, exact filters, sorting, and software details
+- SQLite schema v7 inventory snapshots and factual installed/removed/version-changed events
+- Dedicated NVD provider with public rate limiting, pagination, resumable initial sync,
+  last-modified incremental windows, bounded retry/timeout, cancellation, and local cache
+- Separate CISA KEV provider and authoritative local catalog
+- Provider lifecycle/status in Settings and offline reuse after successful synchronization
+- No software-to-CVE match, vulnerability Detection, or Security Score penalty
+
 `EDY-PROC-003` remains deferred: current executable identity is not stable enough to infer
 tampering from metadata changes without bounded content identity. High/Critical rules,
 production calibration, external intelligence, notifications native to Windows, automated
@@ -76,14 +88,14 @@ response, and long-term detection archival/downsampling remain future work.
 ## Later increments
 
 1. Production calibration and broader legitimate-scenario coverage for the six-rule registry
-2. Software inventory and conservative device discovery
-3. Reports and opt-in integrations
-4. Vulnerability and threat-intelligence sources with secure credentials
+2. Evidence-based software-to-CVE matching using product identity, CPE, and version ranges
+3. Conservative device discovery
+4. Reports and opt-in integrations
 5. Carefully authorized response actions, each behind a separate security boundary
 
-## Explicit non-goals through Sprint 2C
+## Explicit non-goals through Sprint 3 Part 1
 
-VirusTotal, AbuseIPDB, HIBP, urlscan, NVD/CISA, geolocation, reputation,
-advanced network scanning, CVE matching, AI/ML classification, process/network blocking,
+VirusTotal, AbuseIPDB, HIBP, urlscan, geolocation, reputation, advanced network scanning,
+software-to-CVE matching, AI/ML classification, process/network blocking,
 firewall management, service control, command-line persistence, and continuous executable
 content hashing are not started.

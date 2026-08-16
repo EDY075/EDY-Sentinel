@@ -5,6 +5,7 @@ import type { BaselineAction, BaselineSummary, SecurityEvent, SecurityEventHisto
 import type { DetectionEvidencePage, DetectionEvidenceQuery, DetectionPage, DetectionQuery, DetectionStatus } from '../types/detection'
 import type { SecurityScore } from '../types/score'
 import type { RuleDefinition } from '../types/rules'
+import type { InstalledSoftware, SoftwareInventorySnapshot, VulnerabilityProviderName, VulnerabilityProviderStatus } from '../types/inventory'
 import { LANGUAGE_STORAGE_KEY, normalizeLanguage, type SupportedLanguage } from '../i18n/language'
 
 export const isTauri = () => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
@@ -126,4 +127,28 @@ export async function setDetectionRuleEnabled(ruleId: string, enabled: boolean):
 export async function getSecurityScore(): Promise<SecurityScore> {
   if (!isTauri()) throw new Error('Security Score is available only inside the EDY Sentinel desktop app.')
   return invoke<SecurityScore>('get_security_score')
+}
+
+export async function getSoftwareInventory(): Promise<InstalledSoftware[]> {
+  if (!isTauri()) throw new Error('Software inventory is available only inside the EDY Sentinel desktop app.')
+  return invoke<InstalledSoftware[]>('get_software_inventory')
+}
+
+export async function refreshSoftwareInventory(): Promise<SoftwareInventorySnapshot> {
+  if (!isTauri()) throw new Error('Software inventory is available only inside the EDY Sentinel desktop app.')
+  return invoke<SoftwareInventorySnapshot>('refresh_software_inventory')
+}
+
+export async function getVulnerabilityProviderStatus(): Promise<VulnerabilityProviderStatus[]> {
+  if (!isTauri()) return []
+  return invoke<VulnerabilityProviderStatus[]>('get_vulnerability_provider_status')
+}
+
+export async function syncVulnerabilityProvider(provider: VulnerabilityProviderName): Promise<VulnerabilityProviderStatus> {
+  if (!isTauri()) throw new Error('Vulnerability repository sync is available only inside the EDY Sentinel desktop app.')
+  return invoke<VulnerabilityProviderStatus>('sync_vulnerability_provider', { input: { provider } })
+}
+
+export async function cancelVulnerabilitySync(): Promise<void> {
+  if (isTauri()) await invoke('cancel_vulnerability_sync')
 }

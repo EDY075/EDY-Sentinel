@@ -10,17 +10,21 @@ use crate::{
         query_security_event_history, query_security_events, SecurityEventHistoryInput,
         SecurityEventHistoryPage, SecurityEventPage, SecurityEventQueryInput,
     },
+    inventory,
     models::{
         BaselineActionInput, BaselineSummary, Capability, CollectionIssue, CollectorHealth,
-        CollectorStatus, DatabaseStatus, DetectionStatusInput, LanguageInput,
-        LiveTelemetrySnapshot, RuleEnabledInput, ScoreCoverage, SecurityEventRecord,
-        SecurityEventStatusInput, SecurityScore, SystemOverview, ThemeInput,
+        CollectorStatus, DatabaseStatus, DetectionStatusInput, InstalledSoftwareRecord,
+        LanguageInput, LiveTelemetrySnapshot, RuleEnabledInput, ScoreCoverage, SecurityEventRecord,
+        SecurityEventStatusInput, SecurityScore, SoftwareInventorySnapshot, SystemOverview,
+        ThemeInput, VulnerabilityProviderStatus, VulnerabilitySyncInput,
     },
     persistence::Database,
     rules::{self, RuleDefinition},
     score::ScoreEngine,
     telemetry::TelemetryEngine,
+    vulnerability::{self, VulnerabilitySyncManager},
 };
+use std::sync::Arc;
 use tauri::State;
 
 const THEMES: [&str; 4] = ["sentinel-blue", "cyber-green", "terminal", "spectrum"];
@@ -87,6 +91,54 @@ pub fn set_theme(input: ThemeInput, database: State<'_, Database>) -> Result<(),
         return Err("Unsupported theme".into());
     }
     database.set_theme(&input.theme)
+}
+
+#[tauri::command]
+pub fn get_software_inventory(
+    database: State<'_, Database>,
+) -> Result<Vec<InstalledSoftwareRecord>, String> {
+    inventory::current_inventory(&database)
+}
+
+#[tauri::command]
+pub async fn refresh_software_inventory(
+    database: State<'_, Database>,
+) -> Result<SoftwareInventorySnapshot, String> {
+    let database = database.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || inventory::refresh_inventory(&database))
+        .await
+        .map_err(|_| "Software inventory task failed".to_string())?
+}
+
+#[tauri::command]
+pub fn get_vulnerability_provider_status(
+    database: State<'_, Database>,
+) -> Result<Vec<VulnerabilityProviderStatus>, String> {
+    vulnerability::provider_statuses(&database)
+}
+
+#[tauri::command]
+pub async fn sync_vulnerability_provider(
+    input: VulnerabilitySyncInput,
+    database: State<'_, Database>,
+    manager: State<'_, Arc<VulnerabilitySyncManager>>,
+) -> Result<VulnerabilityProviderStatus, String> {
+    manager.begin()?;
+    let database = database.inner().clone();
+    let manager = manager.inner().clone();
+    let provider = input.provider;
+    tauri::async_runtime::spawn_blocking(move || {
+        let result = vulnerability::sync_provider(&database, &manager, &provider);
+        manager.finish();
+        result
+    })
+    .await
+    .map_err(|_| "Vulnerability repository sync task failed".to_string())?
+}
+
+#[tauri::command]
+pub fn cancel_vulnerability_sync(manager: State<'_, Arc<VulnerabilitySyncManager>>) {
+    manager.cancel();
 }
 
 #[tauri::command]
@@ -393,6 +445,16 @@ pub fn get_capabilities() -> Vec<Capability> {
                 "{} versioned local rules over factual provenance",
                 rules::registry().len()
             ),
+        },
+        Capability {
+            id: "software-inventory".into(),
+            status: "available".into(),
+            detail: "Native read-only Windows installed software inventory".into(),
+        },
+        Capability {
+            id: "vulnerability-repository".into(),
+            status: "available".into(),
+            detail: "Offline-first NVD and CISA KEV local repositories".into(),
         },
     ]
 }

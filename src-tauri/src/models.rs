@@ -122,6 +122,65 @@ pub struct DatabaseStatus {
     pub writable: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct SoftwareIdentity {
+    pub vendor: String,
+    pub product: String,
+    pub version: String,
+    pub architecture: String,
+    pub install_scope: String,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct InstalledSoftwareRecord {
+    pub software_id: String,
+    pub display_name: String,
+    pub display_version: Option<String>,
+    pub publisher: Option<String>,
+    pub install_location: Option<String>,
+    pub install_date: Option<String>,
+    pub architecture: String,
+    pub install_scope: String,
+    pub sources: Vec<String>,
+    pub registry_identities: Vec<String>,
+    pub product_code: Option<String>,
+    pub normalized_identity: SoftwareIdentity,
+    pub first_seen_at: String,
+    pub last_seen_at: String,
+    pub observation_count: u64,
+    pub active: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SoftwareInventorySnapshot {
+    pub items: Vec<InstalledSoftwareRecord>,
+    pub collected_at: String,
+    pub duration_ms: u64,
+    pub raw_entry_count: usize,
+    pub source_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct VulnerabilityProviderStatus {
+    pub provider: String,
+    pub status: String,
+    pub last_attempt_at: Option<String>,
+    pub last_successful_sync_at: Option<String>,
+    pub record_count: u64,
+    pub error_code: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VulnerabilitySyncInput {
+    pub provider: String,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ThemeInput {

@@ -8,9 +8,9 @@ export default {
     ignored: 'Ignored',
   },
   confidence: { low: 'Low', medium: 'Medium', high: 'High' },
-  entityTypes: { process: 'Process', connection: 'Connection', system: 'System', executable: 'Executable', process_pattern: 'Process pattern', process_relationship: 'Process relationship', network_destination: 'Network destination', service: 'Service', network_configuration: 'Network configuration' },
-  collectorSources: { system: 'System', processes: 'Processes', connections: 'Connections', services: 'Services', network: 'Network' },
-  evidenceFields: { process: 'Process', executableKey: 'Executable key', path: 'Path', company: 'Company', signer: 'Signer', signatureStatus: 'Signature status', fileSize: 'File size', fileModifiedAt: 'File modified at', firstObserved: 'First observed', parentExecutableKey: 'Parent executable key', parentProcess: 'Parent process', user: 'User', architecture: 'Architecture', parent: 'Parent', parentPath: 'Parent path', child: 'Child', childExecutableKey: 'Child executable key', childPath: 'Child path', remoteIp: 'Remote IP', remotePort: 'Remote port', protocol: 'Protocol', association: 'Association', serviceKey: 'Service key', serviceName: 'Service name', displayName: 'Display name', startupType: 'Startup type', binaryPath: 'Binary path', account: 'Account', field: 'Field', before: 'Before', after: 'After', lastKnownStartupType: 'Last known startup type', firstObservedMissing: 'First observation missing', beforeAddress: 'Previous address', afterAddress: 'New address', beforeInterface: 'Previous interface', afterInterface: 'New interface', beforeMetric: 'Previous metric', afterMetric: 'New metric', interfaceType: 'Interface type', status: 'Status', runtimePid: 'Runtime PID', correlationCycle: 'Correlation cycle' },
+  entityTypes: { process: 'Process', connection: 'Connection', system: 'System', executable: 'Executable', process_pattern: 'Process pattern', process_relationship: 'Process relationship', network_destination: 'Network destination', service: 'Service', network_configuration: 'Network configuration', software: 'Software' },
+  collectorSources: { system: 'System', processes: 'Processes', connections: 'Connections', services: 'Services', network: 'Network', software_inventory: 'Software Inventory' },
+  evidenceFields: { process: 'Process', executableKey: 'Executable key', path: 'Path', company: 'Company', signer: 'Signer', signatureStatus: 'Signature status', fileSize: 'File size', fileModifiedAt: 'File modified at', firstObserved: 'First observed', parentExecutableKey: 'Parent executable key', parentProcess: 'Parent process', user: 'User', architecture: 'Architecture', parent: 'Parent', parentPath: 'Parent path', child: 'Child', childExecutableKey: 'Child executable key', childPath: 'Child path', remoteIp: 'Remote IP', remotePort: 'Remote port', protocol: 'Protocol', association: 'Association', serviceKey: 'Service key', serviceName: 'Service name', displayName: 'Display name', displayVersion: 'Displayed version', publisher: 'Publisher', installScope: 'Install scope', sources: 'Registry sources', registryIdentities: 'Registry identities', productCode: 'Product code', version: 'Version', beforeVersion: 'Previous version', afterVersion: 'New version', lastKnownVersion: 'Last known version', startupType: 'Startup type', binaryPath: 'Binary path', account: 'Account', field: 'Field', before: 'Before', after: 'After', lastKnownStartupType: 'Last known startup type', firstObservedMissing: 'First observation missing', beforeAddress: 'Previous address', afterAddress: 'New address', beforeInterface: 'Previous interface', afterInterface: 'New interface', beforeMetric: 'Previous metric', afterMetric: 'New metric', interfaceType: 'Interface type', status: 'Status', runtimePid: 'Runtime PID', correlationCycle: 'Correlation cycle' },
   baselineFields: { comparison: 'Comparison', baselineVersion: 'Baseline version' },
   transitions: { first_observed: 'First observed', status_changed: 'Status changed', inactive: 'Inactive', reactivated: 'Reactivated' },
   eventTypes: {
@@ -26,6 +26,9 @@ export default {
     primary_route_changed: 'Primary route changed',
     gateway_changed: 'Default gateway changed',
     dns_changed: 'DNS resolver configuration changed',
+    software_installed: 'Software installed',
+    software_removed: 'Software removed',
+    software_version_changed: 'Installed software version changed',
   },
   titles: {
     executable_first_seen: 'New executable observed',
@@ -40,6 +43,9 @@ export default {
     primary_route_changed: 'Primary route changed',
     gateway_changed: 'Default gateway changed',
     dns_changed: 'DNS resolver configuration changed',
+    software_installed: 'Software installed',
+    software_removed: 'Software removed',
+    software_version_changed: 'Installed software version changed',
   },
   filters: {
     ariaLabel: 'Event status filters',
