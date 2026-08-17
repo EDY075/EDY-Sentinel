@@ -1,13 +1,13 @@
 export default {
   title: 'Vulnerability repositories',
-  description: 'Synchronize authoritative public data for offline local use. Software-to-CVE matching is not performed yet.',
+  description: 'Synchronize authoritative public data for conservative offline software-to-CVE evaluation.',
   providers: { nvd: 'NVD', cisa_kev: 'CISA KEV' },
   providerDescriptions: {
     nvd: 'National Vulnerability Database CVE records and applicability data.',
     cisa_kev: 'Known Exploited Vulnerabilities catalog from CISA.',
   },
   status: { idle: 'Not synchronized', ready: 'Ready', updating: 'Updating', error: 'Error' },
-  fields: { lastSync: 'Last sync', records: 'Records', never: 'Never', localCache: 'Local cache' },
+  fields: { lastSync: 'Last sync', records: 'Records processed', pages: 'Pages processed', lastPage: 'Last successful page', elapsed: 'Elapsed time', elapsedValue: '{{value}} s', never: 'Never', localCache: 'Local cache' },
   actions: { synchronize: 'Synchronize', cancel: 'Cancel update', refreshStatus: 'Refresh status' },
   messages: {
     loading: 'Loading provider status', loadError: 'Provider status could not be loaded.',

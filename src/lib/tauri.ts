@@ -5,7 +5,7 @@ import type { BaselineAction, BaselineSummary, SecurityEvent, SecurityEventHisto
 import type { DetectionEvidencePage, DetectionEvidenceQuery, DetectionPage, DetectionQuery, DetectionStatus } from '../types/detection'
 import type { SecurityScore } from '../types/score'
 import type { RuleDefinition } from '../types/rules'
-import type { InstalledSoftware, SoftwareInventorySnapshot, VulnerabilityProviderName, VulnerabilityProviderStatus } from '../types/inventory'
+import type { InstalledSoftware, SoftwareInventorySnapshot, SoftwareVulnerabilityDetail, SoftwareVulnerabilitySummary, VulnerabilityEvaluationSummary, VulnerabilityProviderName, VulnerabilityProviderStatus } from '../types/inventory'
 import { LANGUAGE_STORAGE_KEY, normalizeLanguage, type SupportedLanguage } from '../i18n/language'
 
 export const isTauri = () => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
@@ -151,4 +151,19 @@ export async function syncVulnerabilityProvider(provider: VulnerabilityProviderN
 
 export async function cancelVulnerabilitySync(): Promise<void> {
   if (isTauri()) await invoke('cancel_vulnerability_sync')
+}
+
+export async function getSoftwareVulnerabilitySummaries(): Promise<SoftwareVulnerabilitySummary[]> {
+  if (!isTauri()) return []
+  return invoke<SoftwareVulnerabilitySummary[]>('get_software_vulnerability_summaries')
+}
+
+export async function evaluateSoftwareVulnerabilities(softwareId?: string): Promise<VulnerabilityEvaluationSummary> {
+  if (!isTauri()) throw new Error('Vulnerability evaluation is available only inside the EDY Sentinel desktop app.')
+  return invoke<VulnerabilityEvaluationSummary>('evaluate_software_vulnerabilities', { input: { softwareId } })
+}
+
+export async function getSoftwareVulnerabilityDetail(softwareId: string): Promise<SoftwareVulnerabilityDetail> {
+  if (!isTauri()) throw new Error('Vulnerability details are available only inside the EDY Sentinel desktop app.')
+  return invoke<SoftwareVulnerabilityDetail>('get_software_vulnerability_detail', { input: { softwareId } })
 }

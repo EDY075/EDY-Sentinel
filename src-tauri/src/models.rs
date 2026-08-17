@@ -172,6 +172,10 @@ pub struct VulnerabilityProviderStatus {
     pub last_attempt_at: Option<String>,
     pub last_successful_sync_at: Option<String>,
     pub record_count: u64,
+    pub records_processed: u64,
+    pub pages_processed: u64,
+    pub last_successful_page: Option<u64>,
+    pub sync_elapsed_ms: Option<u64>,
     pub error_code: Option<String>,
 }
 
@@ -179,6 +183,102 @@ pub struct VulnerabilityProviderStatus {
 #[serde(rename_all = "camelCase")]
 pub struct VulnerabilitySyncInput {
     pub provider: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VulnerabilityEvaluationInput {
+    pub software_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SoftwareVulnerabilityInput {
+    pub software_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SoftwareVulnerabilitySummary {
+    pub software_id: String,
+    pub evaluation_state: String,
+    pub confirmed_count: u64,
+    pub possible_count: u64,
+    pub unresolved_count: u64,
+    pub not_affected_count: u64,
+    pub highest_cvss: Option<f64>,
+    pub kev_count: u64,
+    pub last_evaluated_at: Option<String>,
+    pub matching_engine_version: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct VulnerabilityEvaluationSummary {
+    pub software_evaluated: u64,
+    pub confirmed: u64,
+    pub possible: u64,
+    pub unresolved: u64,
+    pub not_affected: u64,
+    pub confirmed_cves: u64,
+    pub kev_cves: u64,
+    pub candidate_cves: u64,
+    pub duration_ms: u64,
+    pub matching_engine_version: u32,
+    pub remaining_queued: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct VulnerabilityMatchRecord {
+    pub match_id: String,
+    pub cve_id: String,
+    pub match_state: String,
+    pub confidence: String,
+    pub installed_version: Option<String>,
+    pub cpe: String,
+    pub affected_range: String,
+    pub comparison_result: String,
+    pub cvss_score: Option<f64>,
+    pub cvss_version: Option<String>,
+    pub severity: Option<String>,
+    pub description: String,
+    pub published_at: String,
+    pub last_modified_at: String,
+    pub references: Vec<String>,
+    pub kev: Option<KevContext>,
+    pub evidence: Vec<VulnerabilityEvidenceRecord>,
+    pub last_evaluated_at: String,
+    pub matching_engine_version: u32,
+    pub nvd_source_version: Option<String>,
+    pub kev_source_version: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct KevContext {
+    pub vulnerability_name: String,
+    pub date_added: String,
+    pub due_date: Option<String>,
+    pub required_action: String,
+    pub known_ransomware_campaign_use: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct VulnerabilityEvidenceRecord {
+    pub evidence_id: u64,
+    pub evidence_type: String,
+    pub source: String,
+    pub observed_at: String,
+    pub details: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SoftwareVulnerabilityDetail {
+    pub summary: SoftwareVulnerabilitySummary,
+    pub matches: Vec<VulnerabilityMatchRecord>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

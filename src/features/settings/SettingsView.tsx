@@ -83,6 +83,17 @@ function ProviderSettings() {
     finally { setLoading(false) }
   }
   useEffect(() => { void load() }, [])
+  const syncActive = Boolean(busyProvider) || providers.some((provider) => provider.status === 'updating')
+  useEffect(() => {
+    if (!syncActive) return
+    const interval = window.setInterval(() => {
+      void getVulnerabilityProviderStatus().then((statuses) => {
+        setProviders(statuses)
+        setLoadError(false)
+      }).catch(() => setLoadError(true))
+    }, 2_000)
+    return () => window.clearInterval(interval)
+  }, [syncActive])
 
   const synchronize = async (provider: VulnerabilityProviderName) => {
     setBusyProvider(provider)
@@ -111,6 +122,9 @@ function ProviderSettings() {
         <dl>
           <div><dt>{t('vulnerabilities:fields.lastSync')}</dt><dd>{provider.lastSuccessfulSyncAt ? dateTime.format(new Date(provider.lastSuccessfulSyncAt)) : t('vulnerabilities:fields.never')}</dd></div>
           <div><dt>{t('vulnerabilities:fields.records')}</dt><dd>{number.format(provider.recordCount)}</dd></div>
+          <div><dt>{t('vulnerabilities:fields.pages')}</dt><dd>{number.format(provider.pagesProcessed)}</dd></div>
+          <div><dt>{t('vulnerabilities:fields.lastPage')}</dt><dd>{provider.lastSuccessfulPage ? number.format(provider.lastSuccessfulPage) : t('vulnerabilities:fields.never')}</dd></div>
+          <div><dt>{t('vulnerabilities:fields.elapsed')}</dt><dd>{provider.syncElapsedMs === undefined ? t('vulnerabilities:fields.never') : t('vulnerabilities:fields.elapsedValue', { value: number.format(Math.round(provider.syncElapsedMs / 1_000)) })}</dd></div>
         </dl>
         <div className="provider-card__actions">
           <button type="button" className="button" disabled={Boolean(busyProvider)} onClick={() => void synchronize(provider.provider)}><Download size={14} />{t('vulnerabilities:actions.synchronize')}</button>

@@ -15,14 +15,17 @@ use crate::{
         BaselineActionInput, BaselineSummary, Capability, CollectionIssue, CollectorHealth,
         CollectorStatus, DatabaseStatus, DetectionStatusInput, InstalledSoftwareRecord,
         LanguageInput, LiveTelemetrySnapshot, RuleEnabledInput, ScoreCoverage, SecurityEventRecord,
-        SecurityEventStatusInput, SecurityScore, SoftwareInventorySnapshot, SystemOverview,
-        ThemeInput, VulnerabilityProviderStatus, VulnerabilitySyncInput,
+        SecurityEventStatusInput, SecurityScore, SoftwareInventorySnapshot,
+        SoftwareVulnerabilityDetail, SoftwareVulnerabilityInput, SoftwareVulnerabilitySummary,
+        SystemOverview, ThemeInput, VulnerabilityEvaluationInput, VulnerabilityEvaluationSummary,
+        VulnerabilityProviderStatus, VulnerabilitySyncInput,
     },
     persistence::Database,
     rules::{self, RuleDefinition},
     score::ScoreEngine,
     telemetry::TelemetryEngine,
     vulnerability::{self, VulnerabilitySyncManager},
+    vulnerability_matching,
 };
 use std::sync::Arc;
 use tauri::State;
@@ -139,6 +142,32 @@ pub async fn sync_vulnerability_provider(
 #[tauri::command]
 pub fn cancel_vulnerability_sync(manager: State<'_, Arc<VulnerabilitySyncManager>>) {
     manager.cancel();
+}
+
+#[tauri::command]
+pub fn get_software_vulnerability_summaries(
+    database: State<'_, Database>,
+) -> Result<Vec<SoftwareVulnerabilitySummary>, String> {
+    vulnerability_matching::summaries(&database)
+}
+
+#[tauri::command]
+pub async fn evaluate_software_vulnerabilities(
+    input: VulnerabilityEvaluationInput,
+    database: State<'_, Database>,
+) -> Result<VulnerabilityEvaluationSummary, String> {
+    let database = database.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || vulnerability_matching::evaluate(&database, input))
+        .await
+        .map_err(|_| "Vulnerability evaluation task failed".to_string())?
+}
+
+#[tauri::command]
+pub fn get_software_vulnerability_detail(
+    input: SoftwareVulnerabilityInput,
+    database: State<'_, Database>,
+) -> Result<SoftwareVulnerabilityDetail, String> {
+    vulnerability_matching::detail(&database, &input.software_id)
 }
 
 #[tauri::command]

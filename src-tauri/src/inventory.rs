@@ -1,6 +1,7 @@
 use crate::{
     models::{InstalledSoftwareRecord, SoftwareIdentity, SoftwareInventorySnapshot},
     persistence::Database,
+    vulnerability_matching,
 };
 use chrono::Utc;
 use rusqlite::{params, OptionalExtension};
@@ -415,24 +416,46 @@ fn persist_inventory(
             )?;
             if previous_snapshot_count > 0 {
                 match previous.remove(&item.software_id) {
-                    None => insert_factual_event(
-                        transaction,
-                        "software_installed",
-                        item,
-                        &snapshot.collected_at,
-                        serde_json::json!({ "displayName": item.display_name, "version": item.display_version }),
-                    )?,
-                    Some((before, _)) if before != item.display_version => insert_factual_event(
-                        transaction,
-                        "software_version_changed",
-                        item,
-                        &snapshot.collected_at,
-                        serde_json::json!({ "displayName": item.display_name, "beforeVersion": before, "afterVersion": item.display_version }),
-                    )?,
+                    None => {
+                        insert_factual_event(
+                            transaction,
+                            "software_installed",
+                            item,
+                            &snapshot.collected_at,
+                            serde_json::json!({ "displayName": item.display_name, "version": item.display_version }),
+                        )?;
+                        vulnerability_matching::enqueue(
+                            transaction,
+                            &item.software_id,
+                            "software_installed",
+                            &snapshot.collected_at,
+                        )?;
+                    }
+                    Some((before, _)) if before != item.display_version => {
+                        insert_factual_event(
+                            transaction,
+                            "software_version_changed",
+                            item,
+                            &snapshot.collected_at,
+                            serde_json::json!({ "displayName": item.display_name, "beforeVersion": before, "afterVersion": item.display_version }),
+                        )?;
+                        vulnerability_matching::enqueue(
+                            transaction,
+                            &item.software_id,
+                            "software_version_changed",
+                            &snapshot.collected_at,
+                        )?;
+                    }
                     _ => {}
                 }
             } else {
                 previous.remove(&item.software_id);
+                vulnerability_matching::enqueue(
+                    transaction,
+                    &item.software_id,
+                    "initial",
+                    &snapshot.collected_at,
+                )?;
             }
         }
         if previous_snapshot_count > 0 {

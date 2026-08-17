@@ -1,20 +1,33 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Boxes, CalendarDays, Database, Fingerprint, PackageSearch, RefreshCw, ShieldQuestion } from 'lucide-react'
+import { Boxes, CalendarDays, Database, Fingerprint, PackageSearch, RefreshCw, ScanSearch, ShieldCheck, ShieldQuestion } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Badge, Drawer } from '../../components/ui/primitives'
 import { OperationalTable } from '../../components/ui/OperationalTable'
 import type { OperationalColumn } from '../../components/ui/OperationalTable'
-import { getSoftwareInventory, refreshSoftwareInventory } from '../../lib/tauri'
-import type { InstalledSoftware } from '../../types/inventory'
+import { evaluateSoftwareVulnerabilities, getSoftwareInventory, getSoftwareVulnerabilityDetail, getSoftwareVulnerabilitySummaries, refreshSoftwareInventory } from '../../lib/tauri'
+import type { InstalledSoftware, SoftwareVulnerabilityDetail, SoftwareVulnerabilitySummary, VulnerabilityMatch } from '../../types/inventory'
 import { OperationalToolbar } from '../telemetry/OperationalToolbar'
 import { sortRows } from '../telemetry/transforms'
 import type { SortDirection } from '../telemetry/transforms'
 import { filterInventory, formatInstallDate } from './inventory'
 import type { InventoryFilter } from './inventory'
+import { CveDetail } from './CveDetail'
 
 let initialInventoryPromise: Promise<InstalledSoftware[]> | undefined
-type InventoryRow = InstalledSoftware & { identityStatus: 'resolved' | 'unresolved' }
+type InventoryRow = InstalledSoftware & {
+  identityStatus: 'resolved' | 'unresolved'
+  vulnerabilitySummary: SoftwareVulnerabilitySummary
+  vulnerabilityCount: number
+  highestCvss: number
+  kevCount: number
+  vulnerabilityStatus: string
+}
+
+const notEvaluated = (softwareId: string): SoftwareVulnerabilitySummary => ({
+  softwareId, evaluationState: 'not_evaluated', confirmedCount: 0, possibleCount: 0,
+  unresolvedCount: 0, notAffectedCount: 0, kevCount: 0,
+})
 
 function loadInitialInventory() {
   initialInventoryPromise ??= getSoftwareInventory()
@@ -31,9 +44,15 @@ export function InventoryView() {
   const locale = i18n.resolvedLanguage ?? i18n.language
   const number = new Intl.NumberFormat(locale)
   const [items, setItems] = useState<InstalledSoftware[]>([])
+  const [summaries, setSummaries] = useState<SoftwareVulnerabilitySummary[]>([])
+  const [detail, setDetail] = useState<SoftwareVulnerabilityDetail>()
+  const [selectedMatch, setSelectedMatch] = useState<VulnerabilityMatch>()
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [evaluating, setEvaluating] = useState(false)
+  const [detailLoading, setDetailLoading] = useState(false)
   const [error, setError] = useState(false)
+  const [evaluationError, setEvaluationError] = useState(false)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<InventoryFilter>('all')
   const [sortKey, setSortKey] = useState<keyof InventoryRow>('displayName')
@@ -42,16 +61,31 @@ export function InventoryView() {
 
   useEffect(() => {
     let active = true
-    loadInitialInventory()
-      .then((loaded) => { if (active) { setItems(loaded); setError(false) } })
+    Promise.all([loadInitialInventory(), getSoftwareVulnerabilitySummaries()])
+      .then(([loaded, vulnerabilitySummaries]) => { if (active) { setItems(loaded); setSummaries(vulnerabilitySummaries); setError(false) } })
       .catch(() => { if (active) setError(true) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [])
 
+  useEffect(() => {
+    if (!selectedKey) { setDetail(undefined); setSelectedMatch(undefined); return }
+    let active = true
+    setDetailLoading(true)
+    getSoftwareVulnerabilityDetail(selectedKey)
+      .then((value) => { if (active) setDetail(value) })
+      .catch(() => { if (active) setEvaluationError(true) })
+      .finally(() => { if (active) setDetailLoading(false) })
+    return () => { active = false }
+  }, [selectedKey])
+
+  const summaryById = useMemo(() => new Map(summaries.map((summary) => [summary.softwareId, summary])), [summaries])
   const rows = useMemo(
-    () => sortRows(filterInventory(items, query, filter).map((item) => ({ ...item, identityStatus: item.normalizedIdentity.status })), { key: sortKey, direction: sortDirection }),
-    [filter, items, query, sortDirection, sortKey],
+    () => sortRows(filterInventory(items, query, filter).map((item) => {
+      const vulnerabilitySummary = summaryById.get(item.softwareId) ?? notEvaluated(item.softwareId)
+      return { ...item, identityStatus: item.normalizedIdentity.status, vulnerabilitySummary, vulnerabilityCount: vulnerabilitySummary.confirmedCount, highestCvss: vulnerabilitySummary.highestCvss ?? -1, kevCount: vulnerabilitySummary.kevCount, vulnerabilityStatus: vulnerabilitySummary.evaluationState }
+    }), { key: sortKey, direction: sortDirection }),
+    [filter, items, query, sortDirection, sortKey, summaryById],
   )
   const selected = items.find(({ softwareId }) => softwareId === selectedKey) ?? null
   const filters: Array<{ value: InventoryFilter; label: string }> = [
@@ -65,9 +99,10 @@ export function InventoryView() {
     { key: 'displayName', label: t('columns.software'), width: 'minmax(190px, 1.7fr)', render: (row) => <span className="cell-primary"><PackageSearch size={14} /><span><strong>{row.displayName}</strong><small>{row.publisher ?? t('unavailable')}</small></span></span> },
     { key: 'displayVersion', label: t('columns.version'), width: 'minmax(90px, .75fr)', render: (row) => row.displayVersion ?? t('unavailable') },
     { key: 'publisher', label: t('columns.publisher'), width: 'minmax(130px, 1fr)', priority: 'secondary', render: (row) => row.publisher ?? t('unavailable') },
-    { key: 'architecture', label: t('columns.architecture'), width: '88px', render: (row) => t(`architecture.${row.architecture}`) },
-    { key: 'installScope', label: t('columns.scope'), width: '86px', priority: 'tertiary', render: (row) => t(`scope.${row.installScope}`) },
-    { key: 'identityStatus', label: t('columns.status'), width: '104px', render: (row) => <Badge tone={row.identityStatus === 'resolved' ? 'good' : 'neutral'}>{t(`identityStatus.${row.identityStatus}`)}</Badge> },
+    { key: 'vulnerabilityCount', label: t('columns.vulnerabilities'), width: '116px', render: (row) => <VulnerabilityCount summary={row.vulnerabilitySummary} t={t} number={number} /> },
+    { key: 'highestCvss', label: t('columns.highestCvss'), width: '82px', priority: 'secondary', render: (row) => row.vulnerabilitySummary.highestCvss === undefined ? '—' : number.format(row.vulnerabilitySummary.highestCvss) },
+    { key: 'kevCount', label: 'KEV', width: '62px', priority: 'tertiary', render: (row) => row.kevCount ? <Badge tone="danger">{number.format(row.kevCount)}</Badge> : '—' },
+    { key: 'vulnerabilityStatus', label: t('columns.status'), width: '128px', render: (row) => <VulnerabilityStatus summary={row.vulnerabilitySummary} t={t} /> },
   ]
 
   const refresh = async () => {
@@ -78,10 +113,25 @@ export function InventoryView() {
       const snapshot = await refreshSoftwareInventory()
       setItems(snapshot.items)
       initialInventoryPromise = Promise.resolve(snapshot.items)
+      setSummaries(await getSoftwareVulnerabilitySummaries())
     } catch {
       setError(true)
     } finally {
       setRefreshing(false)
+    }
+  }
+  const evaluate = async (softwareId?: string) => {
+    if (evaluating) return
+    setEvaluating(true)
+    setEvaluationError(false)
+    try {
+      await evaluateSoftwareVulnerabilities(softwareId)
+      setSummaries(await getSoftwareVulnerabilitySummaries())
+      if (selectedKey) setDetail(await getSoftwareVulnerabilityDetail(selectedKey))
+    } catch {
+      setEvaluationError(true)
+    } finally {
+      setEvaluating(false)
     }
   }
   const onSort = (key: keyof InventoryRow) => {
@@ -93,12 +143,12 @@ export function InventoryView() {
   if (error && !items.length) return <section className="operational-panel inventory-state" role="alert"><Boxes size={22} /><strong>{t('error.title')}</strong><span>{t('error.description')}</span><button type="button" className="button" onClick={() => void refresh()}>{t('actions.retry')}</button></section>
 
   return <>
-    <section className="operational-panel inventory-panel" aria-busy={refreshing}>
+    <section className="operational-panel inventory-panel" aria-busy={refreshing || evaluating}>
       <OperationalToolbar query={query} onQueryChange={setQuery} filter={filter} onFilterChange={setFilter} options={filters} placeholder={t('search')} meta={<><strong>{number.format(rows.length)}</strong> {t('ofTotal', { total: number.format(items.length) })}</>} />
-      <div className="inventory-actions"><span>{error ? t('error.refresh') : t('snapshot.note')}</span><button type="button" className="button" onClick={() => void refresh()} disabled={refreshing}><RefreshCw size={14} className={refreshing ? 'spin' : ''} />{t(refreshing ? 'actions.refreshing' : 'actions.refresh')}</button></div>
+      <div className="inventory-actions"><span role={evaluationError ? 'alert' : undefined}>{evaluationError ? t('error.evaluation') : error ? t('error.refresh') : t('snapshot.note')}</span><div><button type="button" className="button" onClick={() => void evaluate()} disabled={evaluating}><ScanSearch size={14} className={evaluating ? 'spin' : ''} />{t(evaluating ? 'actions.evaluating' : 'actions.evaluate')}</button><button type="button" className="button" onClick={() => void refresh()} disabled={refreshing}><RefreshCw size={14} className={refreshing ? 'spin' : ''} />{t(refreshing ? 'actions.refreshing' : 'actions.refresh')}</button></div></div>
       <OperationalTable rows={rows} columns={columns} rowKey={(row) => row.softwareId} selectedKey={selectedKey} sortKey={sortKey} sortDirection={sortDirection} onSort={onSort} onSelect={(row) => setSelectedKey(row.softwareId)} emptyTitle={t('empty.title')} emptyDescription={t('empty.description')} ariaLabel={t('ariaLabel')} />
     </section>
-    <Drawer open={Boolean(selected)} title={t('drawer.title')} onClose={() => setSelectedKey(undefined)}>{selected && <div className="drawer-content">
+    <Drawer open={Boolean(selected)} title={selectedMatch ? selectedMatch.cveId : t('drawer.title')} wide={Boolean(selectedMatch)} onClose={() => { setSelectedKey(undefined); setSelectedMatch(undefined) }}>{selected && selectedMatch ? <CveDetail match={selectedMatch} softwareName={selected.displayName} locale={locale} onBack={() => setSelectedMatch(undefined)} /> : selected && <div className="drawer-content">
       <DrawerSection icon={<Fingerprint size={15} />} title={t('drawer.presentation')}>
         <Detail label={t('drawer.name')} value={selected.displayName} />
         <Detail label={t('drawer.version')} value={selected.displayVersion ?? t('unavailable')} />
@@ -119,11 +169,33 @@ export function InventoryView() {
         <Detail label={t('drawer.normalizedVersion')} value={localizedIdentity(selected.normalizedIdentity.version, t('unresolved'))} />
         <Detail label={t('drawer.status')} value={t(`identityStatus.${selected.normalizedIdentity.status}`)} />
       </DrawerSection>
-      <DrawerSection icon={<ShieldQuestion size={15} />} title={t('drawer.vulnerabilityStatus')}>
-        <div className="inventory-vulnerability-boundary"><dt>{t('drawer.vulnerabilityStatus')}</dt><dd>{t('drawer.matchingNotEvaluated')}</dd></div>
+      <DrawerSection icon={<ShieldQuestion size={15} />} title={t('drawer.vulnerabilities')}>
+        {detailLoading ? <div className="inventory-vulnerability-boundary"><RefreshCw className="spin" size={14} />{t('drawer.loadingMatches')}</div> : detail ? <VulnerabilitySections detail={detail} t={t} number={number} onOpen={setSelectedMatch} onEvaluate={() => void evaluate(selected.softwareId)} evaluating={evaluating} /> : <div className="inventory-vulnerability-boundary">{t('drawer.matchingNotEvaluated')}</div>}
       </DrawerSection>
     </div>}</Drawer>
   </>
+}
+
+function VulnerabilityCount({ summary, t, number }: { summary: SoftwareVulnerabilitySummary; t: ReturnType<typeof useTranslation>['t']; number: Intl.NumberFormat }) {
+  if (summary.confirmedCount) return <span className="inventory-vuln-count"><strong>{number.format(summary.confirmedCount)}</strong><small>{t('matchStates.confirmed')}</small></span>
+  if (summary.possibleCount) return <span className="inventory-vuln-count"><strong>{number.format(summary.possibleCount)}</strong><small>{t('matchStates.possible')}</small></span>
+  return <span>—</span>
+}
+
+function VulnerabilityStatus({ summary, t }: { summary: SoftwareVulnerabilitySummary; t: ReturnType<typeof useTranslation>['t'] }) {
+  const tone = summary.evaluationState === 'confirmed' ? 'danger' : summary.evaluationState === 'possible' ? 'warning' : summary.evaluationState === 'no_confirmed' || summary.evaluationState === 'not_affected' ? 'good' : 'neutral'
+  return <Badge tone={tone}>{t(`evaluationStates.${summary.evaluationState}`)}</Badge>
+}
+
+function VulnerabilitySections({ detail, t, number, onOpen, onEvaluate, evaluating }: { detail: SoftwareVulnerabilityDetail; t: ReturnType<typeof useTranslation>['t']; number: Intl.NumberFormat; onOpen: (match: VulnerabilityMatch) => void; onEvaluate: () => void; evaluating: boolean }) {
+  const confirmed = detail.matches.filter((match) => match.matchState === 'confirmed')
+  const possible = detail.matches.filter((match) => match.matchState === 'possible')
+  if (detail.summary.evaluationState === 'not_evaluated') return <div className="inventory-vulnerability-boundary"><ShieldQuestion size={17} /><span>{t('drawer.matchingNotEvaluated')}</span><button type="button" className="button" onClick={onEvaluate} disabled={evaluating}>{t(evaluating ? 'actions.evaluating' : 'actions.evaluateSoftware')}</button></div>
+  return <div className="software-vulnerability-sections"><div className="software-vulnerability-summary"><ShieldCheck size={16} /><span><strong>{t(`evaluationStates.${detail.summary.evaluationState}`)}</strong><small>{t('drawer.engineVersion', { version: detail.summary.matchingEngineVersion })}</small></span></div><MatchList title={t('drawer.confirmedMatches')} empty={t('drawer.noConfirmed')} matches={confirmed} number={number} onOpen={onOpen} /><MatchList title={t('drawer.possibleMatches')} empty={t('drawer.noPossible')} matches={possible} number={number} onOpen={onOpen} /></div>
+}
+
+function MatchList({ title, empty, matches, number, onOpen }: { title: string; empty: string; matches: VulnerabilityMatch[]; number: Intl.NumberFormat; onOpen: (match: VulnerabilityMatch) => void }) {
+  return <section className="software-match-group"><h4>{title}</h4>{matches.length ? matches.map((match) => <button type="button" key={match.matchId} onClick={() => onOpen(match)}><span><strong>{match.cveId}</strong><small>{match.affectedRange}</small></span><span>{match.cvssScore === undefined ? '—' : number.format(match.cvssScore)}<small>{match.kev ? 'KEV' : match.confidence}</small></span></button>) : <p>{empty}</p>}</section>
 }
 
 function localizedIdentity(value: string, unresolved: string) { return value === 'Unresolved' ? unresolved : value }

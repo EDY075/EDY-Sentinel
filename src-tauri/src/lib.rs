@@ -21,6 +21,8 @@ mod score;
 mod telemetry;
 #[cfg(windows)]
 mod vulnerability;
+#[cfg(windows)]
+mod vulnerability_matching;
 
 use persistence::Database;
 use std::sync::Arc;
@@ -83,6 +85,9 @@ pub fn run() {
             commands::get_vulnerability_provider_status,
             commands::sync_vulnerability_provider,
             commands::cancel_vulnerability_sync,
+            commands::get_software_vulnerability_summaries,
+            commands::evaluate_software_vulnerabilities,
+            commands::get_software_vulnerability_detail,
         ])
         .run(tauri::generate_context!())
         .expect("EDY Sentinel failed to start");

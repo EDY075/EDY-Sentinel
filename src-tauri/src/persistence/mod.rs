@@ -31,6 +31,10 @@ const MIGRATIONS: &[(i64, &str)] = &[
         7,
         include_str!("../../migrations/0007_software_inventory_vulnerability_repository.sql"),
     ),
+    (
+        8,
+        include_str!("../../migrations/0008_vulnerability_matching.sql"),
+    ),
 ];
 
 #[derive(Clone)]
@@ -754,7 +758,7 @@ mod tests {
     #[test]
     fn migrations_are_versioned_and_preferences_round_trip() {
         let database = Database::in_memory().expect("database should initialize");
-        assert_eq!(database.status().expect("status").0, 7);
+        assert_eq!(database.status().expect("status").0, 8);
         database.set_theme("terminal").expect("theme should save");
         assert_eq!(database.get_theme().expect("theme should load"), "terminal");
         assert_eq!(database.get_language().expect("language query"), None);
@@ -863,7 +867,7 @@ mod tests {
                 |row| row.get(0),
             )
             .expect("Sprint 3 foundation tables");
-        assert_eq!(version, 7);
+        assert_eq!(version, 8);
         assert_eq!(live_tables, 4);
         assert_eq!(baseline_tables, 7);
         assert_eq!(event_columns, 11);
@@ -966,6 +970,38 @@ mod tests {
             .expect("integrity check");
         assert_eq!(foreign_key_issues, 0);
         assert_eq!(integrity, "ok");
+    }
+
+    #[test]
+    fn sprint_three_matching_schema_preserves_provenance_and_incremental_queue() {
+        let database = Database::in_memory().expect("database should initialize");
+        let connection = database.connection.lock().expect("connection lock");
+        let tables: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN (
+                    'nvd_cpe_matches','software_vulnerability_evaluations',
+                    'software_identity_evaluations','software_cpe_candidates',
+                    'vulnerability_matches','vulnerability_match_evidence',
+                    'vulnerability_evaluation_queue')",
+                [],
+                |row| row.get(0),
+            )
+            .expect("matching tables");
+        let configurations: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('nvd_vulnerabilities') WHERE name='configurations_json'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("NVD configurations column");
+        assert_eq!(tables, 7);
+        assert_eq!(configurations, 1);
+        let foreign_key_issues: i64 = connection
+            .query_row("SELECT COUNT(*) FROM pragma_foreign_key_check", [], |row| {
+                row.get(0)
+            })
+            .expect("foreign key check");
+        assert_eq!(foreign_key_issues, 0);
     }
 
     #[test]
