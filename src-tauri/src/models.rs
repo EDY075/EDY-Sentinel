@@ -274,10 +274,38 @@ pub struct VulnerabilityEvidenceRecord {
     pub details: serde_json::Value,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ProductIdentityCandidate {
+    pub cpe: String,
+    pub canonical_vendor: String,
+    pub canonical_product: String,
+    pub resolution_method: String,
+    pub confidence: String,
+    pub provenance: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ProductIdentityDetail {
+    pub status: String,
+    pub canonical_vendor: Option<String>,
+    pub canonical_product: Option<String>,
+    pub normalized_version: Option<String>,
+    pub cpe_candidate: Option<String>,
+    pub resolution_method: Option<String>,
+    pub confidence: Option<String>,
+    pub unresolved_reason: Option<String>,
+    pub resolver_version: u32,
+    pub provenance: Vec<String>,
+    pub candidates: Vec<ProductIdentityCandidate>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SoftwareVulnerabilityDetail {
     pub summary: SoftwareVulnerabilitySummary,
+    pub product_identity: Option<ProductIdentityDetail>,
     pub matches: Vec<VulnerabilityMatchRecord>,
 }
 

@@ -14,6 +14,8 @@ mod host_identity;
 mod inventory;
 mod models;
 mod persistence;
+#[cfg(windows)]
+mod product_identity;
 pub mod rules;
 #[cfg(windows)]
 mod score;

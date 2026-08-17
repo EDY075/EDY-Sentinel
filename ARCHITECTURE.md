@@ -116,7 +116,7 @@ Collectors do not know about React. The persistence layer does not accept SQL fr
 
 ## Persistence
 
-SQLite opens from Tauri's `app_data_dir`. Startup enables foreign keys, WAL, and a busy timeout, then applies each migration transactionally. The authoritative `sentinel.db` uses `schema_migrations`; its current schema version is 8. The rebuildable `vulnerability-cache.db` has an independent checksummed migration ledger and cache schema version 1.
+SQLite opens from Tauri's `app_data_dir`. Startup enables foreign keys, WAL, and a busy timeout, then applies each migration transactionally. The authoritative `sentinel.db` uses `schema_migrations`; its current schema version is 9. The rebuildable `vulnerability-cache.db` has an independent checksummed migration ledger and cache schema version 1.
 
 Tables prepared in Sprint 0: `system_snapshots`, `network_snapshots`, `devices`, `alerts`, `security_events`, `settings`, and `integrations`. Integration secrets are not stored in the database; only a future `secret_ref` may be stored.
 
@@ -171,6 +171,13 @@ tables remain as the schema-v8 evidence projection required by existing FKs, but
 repository and no configuration/applicability tree. The external cache stores compressed CVE
 content/configuration blobs, integer CVE/product/criterion relationships, KEV, provider
 generations, page checkpoints, and a durable delivery outbox.
+
+Sprint 3 Part 2.2B migration 0009 versions the product-identity resolver independently from
+Matching Engine v1. It persists resolver status, method, confidence, canonical vendor/product,
+unresolved reason, canonical CPE candidate, and immutable provenance. A reviewed exact-alias and
+product-extractor registry expands coverage without fuzzy matching; unsupported or ambiguous
+identity remains fail-closed. Vulnerability findings remain isolated from Detection Engine and
+Security Score.
 
 ## Behavioral baseline and security events
 

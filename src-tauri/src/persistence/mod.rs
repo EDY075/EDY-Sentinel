@@ -35,6 +35,10 @@ const MIGRATIONS: &[(i64, &str)] = &[
         8,
         include_str!("../../migrations/0008_vulnerability_matching.sql"),
     ),
+    (
+        9,
+        include_str!("../../migrations/0009_product_identity.sql"),
+    ),
 ];
 
 #[derive(Clone)]
@@ -758,7 +762,7 @@ mod tests {
     #[test]
     fn migrations_are_versioned_and_preferences_round_trip() {
         let database = Database::in_memory().expect("database should initialize");
-        assert_eq!(database.status().expect("status").0, 8);
+        assert_eq!(database.status().expect("status").0, 9);
         database.set_theme("terminal").expect("theme should save");
         assert_eq!(database.get_theme().expect("theme should load"), "terminal");
         assert_eq!(database.get_language().expect("language query"), None);
@@ -867,7 +871,7 @@ mod tests {
                 |row| row.get(0),
             )
             .expect("Sprint 3 foundation tables");
-        assert_eq!(version, 8);
+        assert_eq!(version, 9);
         assert_eq!(live_tables, 4);
         assert_eq!(baseline_tables, 7);
         assert_eq!(event_columns, 11);

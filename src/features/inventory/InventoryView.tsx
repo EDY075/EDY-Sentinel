@@ -6,7 +6,7 @@ import { Badge, Drawer } from '../../components/ui/primitives'
 import { OperationalTable } from '../../components/ui/OperationalTable'
 import type { OperationalColumn } from '../../components/ui/OperationalTable'
 import { evaluateSoftwareVulnerabilities, getSoftwareInventory, getSoftwareVulnerabilityDetail, getSoftwareVulnerabilitySummaries, refreshSoftwareInventory } from '../../lib/tauri'
-import type { InstalledSoftware, SoftwareVulnerabilityDetail, SoftwareVulnerabilitySummary, VulnerabilityMatch } from '../../types/inventory'
+import type { InstalledSoftware, ProductIdentityDetail, SoftwareVulnerabilityDetail, SoftwareVulnerabilitySummary, VulnerabilityMatch } from '../../types/inventory'
 import { OperationalToolbar } from '../telemetry/OperationalToolbar'
 import { sortRows } from '../telemetry/transforms'
 import type { SortDirection } from '../telemetry/transforms'
@@ -163,17 +163,29 @@ export function InventoryView() {
         <Detail label={t('drawer.registryIdentity')} value={selected.registryIdentities.join('\n')} mono />
         <Detail label={t('drawer.productCode')} value={selected.productCode ?? t('unavailable')} mono />
       </DrawerSection>
-      <DrawerSection icon={<Database size={15} />} title={t('drawer.normalizedIdentity')}>
-        <Detail label={t('drawer.vendor')} value={localizedIdentity(selected.normalizedIdentity.vendor, t('unresolved'))} />
-        <Detail label={t('drawer.product')} value={localizedIdentity(selected.normalizedIdentity.product, t('unresolved'))} />
-        <Detail label={t('drawer.normalizedVersion')} value={localizedIdentity(selected.normalizedIdentity.version, t('unresolved'))} />
-        <Detail label={t('drawer.status')} value={t(`identityStatus.${selected.normalizedIdentity.status}`)} />
-      </DrawerSection>
+      <ProductIdentitySection identity={detail?.productIdentity} loading={detailLoading} t={t} />
       <DrawerSection icon={<ShieldQuestion size={15} />} title={t('drawer.vulnerabilities')}>
         {detailLoading ? <div className="inventory-vulnerability-boundary"><RefreshCw className="spin" size={14} />{t('drawer.loadingMatches')}</div> : detail ? <VulnerabilitySections detail={detail} t={t} number={number} onOpen={setSelectedMatch} onEvaluate={() => void evaluate(selected.softwareId)} evaluating={evaluating} /> : <div className="inventory-vulnerability-boundary">{t('drawer.matchingNotEvaluated')}</div>}
       </DrawerSection>
     </div>}</Drawer>
   </>
+}
+
+function ProductIdentitySection({ identity, loading, t }: { identity?: ProductIdentityDetail; loading: boolean; t: ReturnType<typeof useTranslation>['t'] }) {
+  const unavailable = t('unavailable')
+  const candidate = identity?.cpeCandidate ?? (identity?.status === 'ambiguous' ? identity.candidates.map(({ cpe }) => cpe).join('\n') : undefined)
+  return <DrawerSection icon={<Database size={15} />} title={t('drawer.productIdentity')}>
+    <Detail label={t('drawer.status')} value={loading ? t('drawer.loadingIdentity') : t(`productIdentityStatus.${identity?.status ?? 'unresolved'}`)} />
+    <Detail label={t('drawer.canonicalVendor')} value={identity?.canonicalVendor ?? unavailable} />
+    <Detail label={t('drawer.canonicalProduct')} value={identity?.canonicalProduct ?? unavailable} />
+    <Detail label={t('drawer.normalizedVersion')} value={identity?.normalizedVersion ?? unavailable} mono />
+    <Detail label={t('drawer.cpeCandidate')} value={candidate ?? unavailable} mono />
+    <Detail label={t('drawer.resolutionMethod')} value={identity?.resolutionMethod ? t(`resolutionMethods.${identity.resolutionMethod}`) : unavailable} />
+    <Detail label={t('drawer.confidence')} value={identity?.confidence ? t(`confidence.${identity.confidence}`) : unavailable} />
+    {identity?.unresolvedReason && <Detail label={t('drawer.unresolvedReason')} value={t(`unresolvedReasons.${identity.unresolvedReason}`)} />}
+    <Detail label={t('drawer.provenance')} value={identity?.provenance.join('\n') || unavailable} mono />
+    <Detail label={t('drawer.resolverVersion')} value={identity ? `v${identity.resolverVersion}` : unavailable} mono />
+  </DrawerSection>
 }
 
 function VulnerabilityCount({ summary, t, number }: { summary: SoftwareVulnerabilitySummary; t: ReturnType<typeof useTranslation>['t']; number: Intl.NumberFormat }) {
@@ -191,13 +203,12 @@ function VulnerabilitySections({ detail, t, number, onOpen, onEvaluate, evaluati
   const confirmed = detail.matches.filter((match) => match.matchState === 'confirmed')
   const possible = detail.matches.filter((match) => match.matchState === 'possible')
   if (detail.summary.evaluationState === 'not_evaluated') return <div className="inventory-vulnerability-boundary"><ShieldQuestion size={17} /><span>{t('drawer.matchingNotEvaluated')}</span><button type="button" className="button" onClick={onEvaluate} disabled={evaluating}>{t(evaluating ? 'actions.evaluating' : 'actions.evaluateSoftware')}</button></div>
-  return <div className="software-vulnerability-sections"><div className="software-vulnerability-summary"><ShieldCheck size={16} /><span><strong>{t(`evaluationStates.${detail.summary.evaluationState}`)}</strong><small>{t('drawer.engineVersion', { version: detail.summary.matchingEngineVersion })}</small></span></div><MatchList title={t('drawer.confirmedMatches')} empty={t('drawer.noConfirmed')} matches={confirmed} number={number} onOpen={onOpen} /><MatchList title={t('drawer.possibleMatches')} empty={t('drawer.noPossible')} matches={possible} number={number} onOpen={onOpen} /></div>
+  return <div className="software-vulnerability-sections"><div className="software-vulnerability-summary"><ShieldCheck size={16} /><span><strong>{t(`evaluationStates.${detail.summary.evaluationState}`)}</strong><small>{t('drawer.engineVersion', { version: detail.summary.matchingEngineVersion })}</small></span></div><MatchList title={t('drawer.confirmedMatches')} empty={t('drawer.noConfirmed')} matches={confirmed} number={number} t={t} onOpen={onOpen} /><MatchList title={t('drawer.possibleMatches')} empty={t('drawer.noPossible')} matches={possible} number={number} t={t} onOpen={onOpen} /></div>
 }
 
-function MatchList({ title, empty, matches, number, onOpen }: { title: string; empty: string; matches: VulnerabilityMatch[]; number: Intl.NumberFormat; onOpen: (match: VulnerabilityMatch) => void }) {
-  return <section className="software-match-group"><h4>{title}</h4>{matches.length ? matches.map((match) => <button type="button" key={match.matchId} onClick={() => onOpen(match)}><span><strong>{match.cveId}</strong><small>{match.affectedRange}</small></span><span>{match.cvssScore === undefined ? '—' : number.format(match.cvssScore)}<small>{match.kev ? 'KEV' : match.confidence}</small></span></button>) : <p>{empty}</p>}</section>
+function MatchList({ title, empty, matches, number, t, onOpen }: { title: string; empty: string; matches: VulnerabilityMatch[]; number: Intl.NumberFormat; t: ReturnType<typeof useTranslation>['t']; onOpen: (match: VulnerabilityMatch) => void }) {
+  return <section className="software-match-group"><h4>{title}</h4>{matches.length ? matches.map((match) => <button type="button" key={match.matchId} onClick={() => onOpen(match)}><span><strong>{match.cveId}</strong><small>{match.affectedRange}</small></span><span>{match.cvssScore === undefined ? '—' : number.format(match.cvssScore)}<small>{match.kev ? 'KEV' : t(`confidence.${match.confidence}`)}</small></span></button>) : <p>{empty}</p>}</section>
 }
 
-function localizedIdentity(value: string, unresolved: string) { return value === 'Unresolved' ? unresolved : value }
 function DrawerSection({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) { return <section className="drawer-section"><h3>{icon}{title}</h3><dl>{children}</dl></section> }
 function Detail({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) { return <div><dt>{label}</dt><dd className={mono ? 'mono pre-line' : undefined} title={value}>{value}</dd></div> }

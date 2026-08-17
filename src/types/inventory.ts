@@ -121,7 +121,35 @@ export interface VulnerabilityMatch {
   kevSourceVersion?: string
 }
 
+export type ProductIdentityStatus = 'resolved' | 'ambiguous' | 'unresolved'
+export type ProductIdentityResolutionMethod = 'exact_identity' | 'alias_registry' | 'product_extractor' | 'canonical_cpe_lookup'
+export type ProductIdentityUnresolvedReason = 'no_cpe_candidate' | 'vendor_mismatch' | 'ambiguous_product' | 'version_unparseable' | 'missing_version' | 'component_not_mappable' | 'multiple_candidates' | 'unsupported_version_scheme'
+
+export interface ProductIdentityCandidate {
+  cpe: string
+  canonicalVendor: string
+  canonicalProduct: string
+  resolutionMethod: ProductIdentityResolutionMethod
+  confidence: VulnerabilityConfidence
+  provenance: string[]
+}
+
+export interface ProductIdentityDetail {
+  status: ProductIdentityStatus
+  canonicalVendor?: string
+  canonicalProduct?: string
+  normalizedVersion?: string
+  cpeCandidate?: string
+  resolutionMethod?: ProductIdentityResolutionMethod
+  confidence?: VulnerabilityConfidence
+  unresolvedReason?: ProductIdentityUnresolvedReason
+  resolverVersion: number
+  provenance: string[]
+  candidates: ProductIdentityCandidate[]
+}
+
 export interface SoftwareVulnerabilityDetail {
   summary: SoftwareVulnerabilitySummary
+  productIdentity?: ProductIdentityDetail
   matches: VulnerabilityMatch[]
 }
