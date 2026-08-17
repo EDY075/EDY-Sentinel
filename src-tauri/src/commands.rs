@@ -107,11 +107,17 @@ pub fn get_software_inventory(
 #[tauri::command]
 pub async fn refresh_software_inventory(
     database: State<'_, Database>,
+    score: State<'_, ScoreEngine>,
 ) -> Result<SoftwareInventorySnapshot, String> {
     let database = database.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || inventory::refresh_inventory(&database))
-        .await
-        .map_err(|_| "Software inventory task failed".to_string())?
+    let score = score.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let snapshot = inventory::refresh_inventory(&database)?;
+        score.calculate_and_persist(&database, Vec::new())?;
+        Ok(snapshot)
+    })
+    .await
+    .map_err(|_| "Software inventory task failed".to_string())?
 }
 
 #[tauri::command]
@@ -127,14 +133,21 @@ pub async fn sync_vulnerability_provider(
     database: State<'_, Database>,
     cache: State<'_, VulnerabilityCache>,
     manager: State<'_, Arc<VulnerabilitySyncManager>>,
+    score: State<'_, ScoreEngine>,
 ) -> Result<VulnerabilityProviderStatus, String> {
     manager.begin()?;
     let database = database.inner().clone();
     let cache = cache.inner().clone();
     let manager = manager.inner().clone();
+    let score = score.inner().clone();
     let provider = input.provider;
     tauri::async_runtime::spawn_blocking(move || {
-        let result = vulnerability::sync_provider(&database, &cache, &manager, &provider);
+        let result = vulnerability::sync_provider(&database, &cache, &manager, &provider).and_then(
+            |status| {
+                score.calculate_and_persist(&database, Vec::new())?;
+                Ok(status)
+            },
+        );
         manager.finish();
         result
     })
@@ -159,11 +172,15 @@ pub async fn evaluate_software_vulnerabilities(
     input: VulnerabilityEvaluationInput,
     database: State<'_, Database>,
     cache: State<'_, VulnerabilityCache>,
+    score: State<'_, ScoreEngine>,
 ) -> Result<VulnerabilityEvaluationSummary, String> {
     let database = database.inner().clone();
     let cache = cache.inner().clone();
+    let score = score.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        vulnerability_matching::evaluate(&database, &cache, input)
+        let summary = vulnerability_matching::evaluate(&database, &cache, input)?;
+        score.calculate_and_persist(&database, Vec::new())?;
+        Ok(summary)
     })
     .await
     .map_err(|_| "Vulnerability evaluation task failed".to_string())?

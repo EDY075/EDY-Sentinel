@@ -796,6 +796,64 @@ pub struct ScoreBreakdown {
     pub penalty: u32,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct VulnerabilityCoverage {
+    pub status: String,
+    #[serde(default = "vulnerability_coverage_basis")]
+    pub basis: String,
+    pub total_software: u64,
+    pub eligible_software: u64,
+    pub resolved_eligible: u64,
+    pub ambiguous_eligible: u64,
+    pub unresolved_eligible: u64,
+    pub not_mappable: u64,
+    pub pending_evaluation: u64,
+}
+
+fn vulnerability_coverage_basis() -> String {
+    "software_record_proxy".into()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct VulnerabilityCvssBands {
+    pub unrated: u64,
+    pub low: u64,
+    pub medium: u64,
+    pub high: u64,
+    pub critical: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ProductVulnerabilityRisk {
+    pub product_risk_key: String,
+    pub canonical_vendor: String,
+    pub canonical_product: String,
+    pub display_names: Vec<String>,
+    pub software_ids: Vec<String>,
+    pub installed_versions: Vec<String>,
+    pub confirmed_cve_ids: Vec<String>,
+    #[serde(default)]
+    pub possible_cve_ids: Vec<String>,
+    pub confirmed_count: u64,
+    pub possible_count: u64,
+    pub cvss_bands: VulnerabilityCvssBands,
+    pub highest_cvss: Option<f64>,
+    pub confirmed_kev_count: u64,
+    pub severity_anchor: f64,
+    pub marginal_breadth: f64,
+    pub kev_boost: f64,
+    pub uncapped_impact: f64,
+    pub impact: u32,
+    pub matching_engine_versions: Vec<u32>,
+    pub identity_resolver_versions: Vec<u32>,
+    pub nvd_source_versions: Vec<String>,
+    pub kev_source_versions: Vec<String>,
+    pub evaluated_at: String,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SecurityScore {
@@ -808,5 +866,9 @@ pub struct SecurityScore {
     pub highest_severity: Option<DetectionSeverity>,
     pub coverage: Vec<ScoreCoverage>,
     pub breakdown: Vec<ScoreBreakdown>,
+    pub detection_penalty: u32,
+    pub vulnerability_penalty: u32,
+    pub vulnerability_coverage: VulnerabilityCoverage,
+    pub product_vulnerability_risks: Vec<ProductVulnerabilityRisk>,
     pub reason: Option<String>,
 }

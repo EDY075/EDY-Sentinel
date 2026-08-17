@@ -39,7 +39,7 @@ function loadInitialInventory() {
   return initialInventoryPromise
 }
 
-export function InventoryView() {
+export function InventoryView({ initialSoftwareId }: { initialSoftwareId?: string }) {
   const { t, i18n } = useTranslation('inventory')
   const locale = i18n.resolvedLanguage ?? i18n.language
   const number = new Intl.NumberFormat(locale)
@@ -57,7 +57,7 @@ export function InventoryView() {
   const [filter, setFilter] = useState<InventoryFilter>('all')
   const [sortKey, setSortKey] = useState<keyof InventoryRow>('displayName')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
-  const [selectedKey, setSelectedKey] = useState<string>()
+  const [selectedKey, setSelectedKey] = useState<string | undefined>(initialSoftwareId)
 
   useEffect(() => {
     let active = true

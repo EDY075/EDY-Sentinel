@@ -39,6 +39,10 @@ const MIGRATIONS: &[(i64, &str)] = &[
         9,
         include_str!("../../migrations/0009_product_identity.sql"),
     ),
+    (
+        10,
+        include_str!("../../migrations/0010_vulnerability_score_v2.sql"),
+    ),
 ];
 
 #[derive(Clone)]
@@ -762,7 +766,7 @@ mod tests {
     #[test]
     fn migrations_are_versioned_and_preferences_round_trip() {
         let database = Database::in_memory().expect("database should initialize");
-        assert_eq!(database.status().expect("status").0, 9);
+        assert_eq!(database.status().expect("status").0, 10);
         database.set_theme("terminal").expect("theme should save");
         assert_eq!(database.get_theme().expect("theme should load"), "terminal");
         assert_eq!(database.get_language().expect("language query"), None);
@@ -871,7 +875,17 @@ mod tests {
                 |row| row.get(0),
             )
             .expect("Sprint 3 foundation tables");
-        assert_eq!(version, 9);
+        let vulnerability_score_columns: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('security_score_snapshots')
+                 WHERE name IN ('detection_penalty', 'vulnerability_penalty',
+                                'vulnerability_coverage_json',
+                                'product_vulnerability_risks_json')",
+                [],
+                |row| row.get(0),
+            )
+            .expect("vulnerability score v2 columns");
+        assert_eq!(version, 10);
         assert_eq!(live_tables, 4);
         assert_eq!(baseline_tables, 7);
         assert_eq!(event_columns, 11);
@@ -879,6 +893,7 @@ mod tests {
         assert_eq!(history_table, 1);
         assert_eq!(detection_tables, 7);
         assert_eq!(sprint_three_tables, 7);
+        assert_eq!(vulnerability_score_columns, 4);
     }
 
     #[test]

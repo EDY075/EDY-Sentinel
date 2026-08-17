@@ -36,6 +36,7 @@ function App() {
   const [baselineBusy, setBaselineBusy] = useState(false)
   const [securitySection, setSecuritySection] = useState<SecuritySection>('detections')
   const [scoreOpen, setScoreOpen] = useState(false)
+  const [inventoryTarget, setInventoryTarget] = useState<string>()
   const { live, setLive, loading, refreshing, overview, database, snapshot, error, health, refresh, baseline, securityScore, securityError, securityRevision, securityNotice, refreshSecurity, startBaseline, resetBaseline, completeBaseline, setEventStatus, setDetectionStatus, clearSecurityNotice } = useTelemetry()
   const nav: Array<{ label: string; icon: typeof LayoutDashboard; page?: Page }> = [
     { label: t('navigation:overview'), icon: LayoutDashboard, page: 'overview' },
@@ -100,7 +101,8 @@ function App() {
     catch { setTheme(previous); setToast(t('shell:toast.themeSaveError')) }
   }
 
-  const openPage = (nextPage: Page) => { setPage(nextPage); setPaletteOpen(false); setMobileOpen(false) }
+  const openPage = (nextPage: Page) => { setPage(nextPage); if (nextPage !== 'inventory') setInventoryTarget(undefined); setPaletteOpen(false); setMobileOpen(false) }
+  const openScoreProduct = (softwareId: string) => { setInventoryTarget(softwareId); setScoreOpen(false); setPage('inventory'); setPaletteOpen(false); setMobileOpen(false) }
   const openSecurity = (section: SecuritySection) => { setSecuritySection(section); openPage('events') }
   const setLiveWithToast = (nextLive: boolean) => { setLive(nextLive); setToast(t(nextLive ? 'shell:toast.telemetryResumed' : 'shell:toast.telemetryPaused')) }
   const runRefresh = () => { void refresh(); setToast(t('shell:toast.collecting')) }
@@ -172,7 +174,7 @@ function App() {
             {page === 'processes' && snapshot && <ProcessesView processes={snapshot.processes} connections={snapshot.connections} currentUser={overview?.host.username} />}
             {page === 'network' && snapshot && <ConnectionsView connections={snapshot.connections} />}
             {page === 'services' && snapshot && <ServicesView services={snapshot.services} />}
-            {page === 'inventory' && <InventoryView />}
+            {page === 'inventory' && <InventoryView initialSoftwareId={inventoryTarget} />}
             {page === 'events' && <SecurityWorkspace section={securitySection} revision={securityRevision} error={securityError} onSectionChange={setSecuritySection} onRefresh={refreshSecurity} onEventStatusChange={setEventStatus} onDetectionStatusChange={setDetectionStatus} />}
             {page === 'settings' && <SettingsView />}
           </div>
@@ -184,7 +186,7 @@ function App() {
         <div className="command-list"><span>{t('shell:palette.available')}</span>{filteredCommands.map((command) => <button type="button" key={command.label} onClick={command.run}><command.icon size={16} /><div><strong>{command.label}</strong><small>{command.detail}</small></div></button>)}{!filteredCommands.length && <div className="command-empty">{t('shell:palette.empty')}</div>}</div>
       </Dialog>
       <BaselineActionDialog mode={baselineAction} busy={baselineBusy} onClose={() => setBaselineAction(null)} onConfirm={runBaselineAction} />
-      <ScoreBreakdownDrawer score={securityScore} open={scoreOpen} onClose={() => setScoreOpen(false)} />
+      <ScoreBreakdownDrawer score={securityScore} open={scoreOpen} onClose={() => setScoreOpen(false)} onOpenProduct={openScoreProduct} />
       {toast && <div className="toast" role="status"><span className="toast-mark" />{toast}</div>}
     </div>
   )

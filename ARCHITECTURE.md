@@ -14,7 +14,8 @@ Rust domain models
   -> managed TelemetryEngine (cadence, tracking, factual diff)
   -> BaselineEngine (versioned learning, factual comparison, deduplication)
   -> DetectionEngine (versioned rules, bounded delta correlation, provenance)
-  -> ScoreEngine (coverage gate, explainable penalties, versioned snapshots)
+  -> ScoreEngine (formula-v1 Detections + bounded formula-v2 vulnerability risk,
+     coverage gates, explainable penalties, versioned snapshots)
   -> native Software Inventory (on-demand Registry collection, factual change tracking)
   -> NVD / CISA KEV providers (bounded HTTPS sync, validation, isolated rebuildable cache)
   -> sentinel.db (authoritative Sentinel state and vulnerability evidence snapshots)
@@ -64,7 +65,8 @@ The frontend cannot execute SQL, WMI, Registry reads, shell commands, or arbitra
 - `detection.rs`: independent checkpoint consumer, correlation, precedence, deduplication,
   reopen/status policy, evidence snapshots, and append-only detection history
 - `detection_query.rs`: parameterized keyset pagination and evidence queries
-- `score.rs`: formula-v1 coverage gate, grouped penalties, immutable snapshots, and retention
+- `score.rs`: formula-v1 Detection penalties, formula-v2 canonical product vulnerability risk,
+  independent coverage qualification, immutable versioned snapshots, and retention
 - `inventory.rs`: native HKLM/HKCU 64/32-bit inventory, conservative identity,
   snapshot persistence, and factual installed/removed/version-changed events
 - `vulnerability.rs`: dedicated NVD and CISA KEV HTTPS providers, validation, bounded sync,
@@ -111,12 +113,14 @@ Collectors do not know about React. The persistence layer does not accept SQL fr
 - A total orchestration failure becomes an error state.
 - Security Events remain factual and have no severity. Detections are separate rule conclusions.
 - Confidence describes evidence/correlation quality, never malware probability.
-- A numeric Security Score exists only with a Ready baseline, enabled rules, and measured
-  system/process/connection/service coverage; otherwise the UI shows an explicit unavailable state.
+- A numeric Security Score requires a Ready baseline, enabled rules, and measured
+  system/process/connection/service coverage. Formula v2 qualifies vulnerability data that is
+  updating/unavailable as limited without fabricating zero risk; unresolved/ambiguous identity is
+  separately reported coverage and is never a penalty.
 
 ## Persistence
 
-SQLite opens from Tauri's `app_data_dir`. Startup enables foreign keys, WAL, and a busy timeout, then applies each migration transactionally. The authoritative `sentinel.db` uses `schema_migrations`; its current schema version is 9. The rebuildable `vulnerability-cache.db` has an independent checksummed migration ledger and cache schema version 1.
+SQLite opens from Tauri's `app_data_dir`. Startup enables foreign keys, WAL, and a busy timeout, then applies each migration transactionally. The authoritative `sentinel.db` uses `schema_migrations`; its current schema version is 10. The rebuildable `vulnerability-cache.db` has an independent checksummed migration ledger and cache schema version 1.
 
 Tables prepared in Sprint 0: `system_snapshots`, `network_snapshots`, `devices`, `alerts`, `security_events`, `settings`, and `integrations`. Integration secrets are not stored in the database; only a future `secret_ref` may be stored.
 
@@ -179,6 +183,12 @@ product-extractor registry expands coverage without fuzzy matching; unsupported 
 identity remains fail-closed. Vulnerability findings remain isolated from Detection Engine and
 Security Score.
 
+Sprint 3 Part 3B migration 0010 extends immutable score snapshots for formula v2 with the
+Vulnerability contribution, current canonical product-risk breakdown, separate software-identity
+coverage, source/engine versions, and the complete versioned input fingerprint. Existing formula-v1
+rows remain immutable and historically interpretable. Possible CVE identifiers are serialized only
+for audit/UI and have score impact zero.
+
 ## Behavioral baseline and security events
 
 The BaselineEngine runs after factual tracking. Live facts are sampled for baseline work no
@@ -212,10 +222,12 @@ ID, while ignored history remains preserved. Rule precedence prevents one execut
 from producing additive lower-specificity score penalties.
 
 Security Score formula v1 starts at 100 and subtracts the highest penalty per correlation group.
-It uses only active detections whose rules remain enabled. Resolved and Ignored detections do not
-contribute; Acknowledged remains active until the condition ends or is resolved. Equal inputs are
-deduplicated, with a 15-minute heartbeat; snapshots have 365-day retention. The value is an
-observed posture under current Sentinel coverage, not a percentage guarantee of security.
+Formula v2 preserves that calculation and adds only current `Confirmed + High confidence`
+software-to-CVE matches, aggregated by canonical product with diminishing returns, a per-product
+cap of 7 and a Vulnerabilities cap of 18. KEV is a binary post-match prioritization boost; Possible,
+Unresolved, Not affected, stale fingerprints, duplicates, and incomplete coverage never create a
+penalty. Equal inputs are deduplicated with a 15-minute heartbeat; snapshots have 365-day retention
+and retain formula version. The value is observed posture, not a percentage guarantee of security.
 
 The one-minute learning period is a controlled development/test configuration. Events
 created from that deliberately short baseline are not a production calibration dataset.

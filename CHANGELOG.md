@@ -2,6 +2,33 @@
 
 All notable changes follow Keep a Changelog principles.
 
+## [Unreleased]
+
+### Added
+
+- Security Score formula v2 with a bounded Vulnerability Intelligence contribution, canonical
+  product aggregation, KEV post-match prioritization, explicit coverage state, and immutable
+  formula-versioned history
+- Explainable pt-BR/English score card, category math, per-product risk details, Possible impact
+  zero, KEV context, and navigation to existing Inventory/CVE evidence
+- Migration 0010 and lifecycle tests for version changes, removals, Not affected, stale
+  fingerprints, duplicates, caps, queue recovery, and v1/v2 history
+
+### Changed
+
+- A valid numeric score remains visible while vulnerability evaluation is updating, with an
+  explicit limited-coverage qualification instead of hiding the current observable result
+- Software identity coverage and CVE counts are reported as separate metrics
+
+### Validation
+
+- Real release: score 86 = base 100 − Detections 0 − Vulnerabilities 14; JRE/VirtualBox/Python
+  impacts 6/4/4; 31 Confirmed, 1 KEV Confirmed, and 1 Possible with impact zero
+- Runtime queue lifecycle: 81 pending → 0, global score Limited → Good, while unresolved identity
+  coverage remains independently Limited
+- pt-BR, English, Sentinel Blue, Cyber Green, Terminal, Spectrum, and external screenshot evidence
+  validated without changing Matching Engine v1, Detection Engine, or the six rules
+
 ## [0.4.0] — 2026-08-16
 
 ### Added
