@@ -25,6 +25,7 @@ use crate::{
     score::ScoreEngine,
     telemetry::TelemetryEngine,
     vulnerability::{self, VulnerabilitySyncManager},
+    vulnerability_cache::VulnerabilityCache,
     vulnerability_matching,
 };
 use std::sync::Arc;
@@ -115,23 +116,25 @@ pub async fn refresh_software_inventory(
 
 #[tauri::command]
 pub fn get_vulnerability_provider_status(
-    database: State<'_, Database>,
+    cache: State<'_, VulnerabilityCache>,
 ) -> Result<Vec<VulnerabilityProviderStatus>, String> {
-    vulnerability::provider_statuses(&database)
+    vulnerability::provider_statuses(&cache)
 }
 
 #[tauri::command]
 pub async fn sync_vulnerability_provider(
     input: VulnerabilitySyncInput,
     database: State<'_, Database>,
+    cache: State<'_, VulnerabilityCache>,
     manager: State<'_, Arc<VulnerabilitySyncManager>>,
 ) -> Result<VulnerabilityProviderStatus, String> {
     manager.begin()?;
     let database = database.inner().clone();
+    let cache = cache.inner().clone();
     let manager = manager.inner().clone();
     let provider = input.provider;
     tauri::async_runtime::spawn_blocking(move || {
-        let result = vulnerability::sync_provider(&database, &manager, &provider);
+        let result = vulnerability::sync_provider(&database, &cache, &manager, &provider);
         manager.finish();
         result
     })
@@ -155,11 +158,15 @@ pub fn get_software_vulnerability_summaries(
 pub async fn evaluate_software_vulnerabilities(
     input: VulnerabilityEvaluationInput,
     database: State<'_, Database>,
+    cache: State<'_, VulnerabilityCache>,
 ) -> Result<VulnerabilityEvaluationSummary, String> {
     let database = database.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || vulnerability_matching::evaluate(&database, input))
-        .await
-        .map_err(|_| "Vulnerability evaluation task failed".to_string())?
+    let cache = cache.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        vulnerability_matching::evaluate(&database, &cache, input)
+    })
+    .await
+    .map_err(|_| "Vulnerability evaluation task failed".to_string())?
 }
 
 #[tauri::command]

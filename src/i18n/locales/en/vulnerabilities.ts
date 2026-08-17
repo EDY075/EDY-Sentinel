@@ -11,6 +11,7 @@ export default {
   actions: { synchronize: 'Synchronize', cancel: 'Cancel update', refreshStatus: 'Refresh status' },
   messages: {
     loading: 'Loading provider status', loadError: 'Provider status could not be loaded.',
+    cacheUnavailable: 'The vulnerability cache is unavailable. Inventory and security monitoring remain available.',
     syncError: 'The external update failed. Existing local records were preserved.',
     offline: 'After a successful sync, the local repository remains available offline.',
     noApiKey: 'No API key is stored in the interface.',

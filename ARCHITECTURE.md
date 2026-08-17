@@ -16,8 +16,9 @@ Rust domain models
   -> DetectionEngine (versioned rules, bounded delta correlation, provenance)
   -> ScoreEngine (coverage gate, explainable penalties, versioned snapshots)
   -> native Software Inventory (on-demand Registry collection, factual change tracking)
-  -> NVD / CISA KEV providers (bounded HTTPS sync, validation, local cache)
-  -> SQLite repository (migrations, observations, baselines, events, detections, score, inventory, vulnerability data)
+  -> NVD / CISA KEV providers (bounded HTTPS sync, validation, isolated rebuildable cache)
+  -> sentinel.db (authoritative Sentinel state and vulnerability evidence snapshots)
+  -> vulnerability-cache.db (rebuildable NVD/KEV/CPE data and sync checkpoints)
 ```
 
 ## Frontend responsibilities
@@ -67,7 +68,13 @@ The frontend cannot execute SQL, WMI, Registry reads, shell commands, or arbitra
 - `inventory.rs`: native HKLM/HKCU 64/32-bit inventory, conservative identity,
   snapshot persistence, and factual installed/removed/version-changed events
 - `vulnerability.rs`: dedicated NVD and CISA KEV HTTPS providers, validation, bounded sync,
-  cancellation, incremental cache writes, and provider lifecycle
+  cancellation, resumable incremental cache writes, and provider lifecycle
+- `vulnerability_cache.rs`: degradable external-cache lifecycle, versioned migrations,
+  zlib payload integrity, WAL/foreign-key configuration, and typed transactions
+- `vulnerability_cache_migration.rs`: safe one-time import from the schema-v8 legacy
+  repository into the compact external cache
+- `vulnerability_matching.rs`: conservative CPE/version/configuration evaluation, one
+  parsed configuration per CVE, and materialization of minimal offline evidence snapshots
 - `commands.rs`: narrow Tauri commands and input validation
 - `models.rs`: serialization contracts
 - `persistence/mod.rs`: SQLite lifecycle, migrations, snapshots, and settings
@@ -109,7 +116,7 @@ Collectors do not know about React. The persistence layer does not accept SQL fr
 
 ## Persistence
 
-SQLite opens from Tauri's `app_data_dir`. Startup enables foreign keys, WAL, and a busy timeout, then applies each migration transactionally. `schema_migrations` is the single version ledger. Current schema version: 7.
+SQLite opens from Tauri's `app_data_dir`. Startup enables foreign keys, WAL, and a busy timeout, then applies each migration transactionally. The authoritative `sentinel.db` uses `schema_migrations`; its current schema version is 8. The rebuildable `vulnerability-cache.db` has an independent checksummed migration ledger and cache schema version 1.
 
 Tables prepared in Sprint 0: `system_snapshots`, `network_snapshots`, `devices`, `alerts`, `security_events`, `settings`, and `integrations`. Integration secrets are not stored in the database; only a future `secret_ref` may be stored.
 
@@ -151,6 +158,19 @@ Sprint 3 Part 1 migration 0007 adds inventory snapshots/current rows/append-only
 factual software-change events, minimal NVD and CISA KEV caches, and provider state. Inventory
 facts remain severity-free. The NVD cache retains CVE metadata, CVSS, weaknesses, essential
 references, and bounded CPE applicability needed by a future matcher; no match is produced yet.
+
+Sprint 3 Part 2 migration 0008 adds immutable evaluation history, evaluation-scoped CPE
+candidates, vulnerability matches, evidence, the evaluation queue, complete NVD configuration
+trees, and indexed CPE criteria. Matching Engine v1 remains isolated from Detection Engine and
+Security Score.
+
+Sprint 3 Part 2.2A moves reconstructible provider data to `vulnerability-cache.db` without
+rewriting migrations 0007/0008. The main database retains inventory, evaluations, matches,
+evidence, and only the minimal CVE/KEV snapshots referenced by historical matches. Legacy NVD
+tables remain as the schema-v8 evidence projection required by existing FKs, but contain no CPE
+repository and no configuration/applicability tree. The external cache stores compressed CVE
+content/configuration blobs, integer CVE/product/criterion relationships, KEV, provider
+generations, page checkpoints, and a durable delivery outbox.
 
 ## Behavioral baseline and security events
 
@@ -226,12 +246,19 @@ deduplication rule; name similarity is never evidence of identity.
 NVD and CISA KEV synchronization runs on Tauri blocking workers. Both providers use an HTTPS-only
 client, bounded response bodies, payload validation, parameterized SQLite writes, sanitized errors,
 and cooperative cancellation. NVD respects public rate limits and uses last-modified windows for
-incremental updates. CISA KEV uses an independent authoritative replacement transaction. Neither
-provider receives endpoint data, and the UI uses the resulting cache offline.
+incremental updates. Each page and its relational checkpoint commit atomically. Incremental sync
+persists its generation, fixed window bounds and next `startIndex`, overlaps the previous successful
+high-water mark by five minutes, and deduplicates by CVE identity plus modified time. The successful
+watermark is the request limit, not completion time. CISA KEV uses an independent generation.
+
+The cache is local and offline-first but not authoritative application state. Missing, corrupt,
+partial, or newer-schema cache files degrade Vulnerability Intelligence explicitly without blocking
+Inventory, baseline, Detection Engine, the six rules, or Security Score. A ready generation and a
+durable outbox make cache-to-main re-evaluation delivery idempotent across crashes.
 
 ## Planned module seams
 
-Device discovery, software-to-CVE matching, additional threat intelligence, alerts, reports,
+Device discovery, additional threat intelligence, alerts, reports,
 integrations, and automated response remain architectural seams only.
 Empty fake implementations are deliberately absent.
 
@@ -244,3 +271,4 @@ Empty fake implementations are deliberately absent.
 - `docs/adr/0005-telemetry-accuracy-semantics.md`
 - `docs/adr/0006-behavioral-baseline-and-factual-events.md`
 - `docs/adr/0007-software-inventory-and-local-vulnerability-repositories.md`
+- `docs/adr/0008-isolated-vulnerability-cache.md`

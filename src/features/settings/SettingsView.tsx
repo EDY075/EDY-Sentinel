@@ -73,13 +73,13 @@ function ProviderSettings() {
   const dateTime = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' })
   const [providers, setProviders] = useState<VulnerabilityProviderStatus[]>([])
   const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState(false)
+  const [loadError, setLoadError] = useState<'cache' | 'provider' | null>(null)
   const [syncError, setSyncError] = useState(false)
   const [busyProvider, setBusyProvider] = useState<VulnerabilityProviderName>()
 
   const load = async () => {
-    try { setProviders(await getVulnerabilityProviderStatus()); setLoadError(false) }
-    catch { setLoadError(true) }
+    try { setProviders(await getVulnerabilityProviderStatus()); setLoadError(null) }
+    catch (error) { setLoadError(String(error).includes('CACHE_') ? 'cache' : 'provider') }
     finally { setLoading(false) }
   }
   useEffect(() => { void load() }, [])
@@ -89,8 +89,8 @@ function ProviderSettings() {
     const interval = window.setInterval(() => {
       void getVulnerabilityProviderStatus().then((statuses) => {
         setProviders(statuses)
-        setLoadError(false)
-      }).catch(() => setLoadError(true))
+        setLoadError(null)
+      }).catch((error) => setLoadError(String(error).includes('CACHE_') ? 'cache' : 'provider'))
     }, 2_000)
     return () => window.clearInterval(interval)
   }, [syncActive])
@@ -131,7 +131,7 @@ function ProviderSettings() {
           {busyProvider === provider.provider && <button type="button" className="button" onClick={() => void cancel()}><X size={14} />{t('vulnerabilities:actions.cancel')}</button>}
         </div>
       </article>)}
-      {loadError && <div className="provider-message" role="alert">{t('vulnerabilities:messages.loadError')}<button type="button" className="button" onClick={() => void load()}>{t('vulnerabilities:actions.refreshStatus')}</button></div>}
+      {loadError && <div className="provider-message" role="alert">{t(`vulnerabilities:messages.${loadError === 'cache' ? 'cacheUnavailable' : 'loadError'}`)}<button type="button" className="button" onClick={() => void load()}>{t('vulnerabilities:actions.refreshStatus')}</button></div>}
       {syncError && <div className="provider-message provider-message--error" role="alert">{t('vulnerabilities:messages.syncError')}</div>}
     </div>
     <footer className="settings-view__status"><span>{t('vulnerabilities:messages.offline')}</span><span>{t('vulnerabilities:messages.noApiKey')}</span></footer>

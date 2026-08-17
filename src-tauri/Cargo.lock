@@ -745,6 +745,7 @@ name = "edy-sentinel"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "flate2",
  "ipconfig",
  "reqwest 0.12.28",
  "rusqlite",

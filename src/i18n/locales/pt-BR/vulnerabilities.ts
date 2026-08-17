@@ -11,6 +11,7 @@ export default {
   actions: { synchronize: 'Sincronizar', cancel: 'Cancelar atualização', refreshStatus: 'Atualizar status' },
   messages: {
     loading: 'Carregando o status dos provedores', loadError: 'Não foi possível carregar o status dos provedores.',
+    cacheUnavailable: 'O cache de vulnerabilidades está indisponível. O inventário e o monitoramento de segurança continuam disponíveis.',
     syncError: 'A atualização externa falhou. Os registros locais existentes foram preservados.',
     offline: 'Após uma sincronização bem-sucedida, o repositório local permanece disponível offline.',
     noApiKey: 'Nenhuma chave de API é armazenada na interface.',

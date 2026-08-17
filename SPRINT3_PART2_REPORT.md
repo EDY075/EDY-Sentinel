@@ -268,3 +268,150 @@ The following were intentionally not changed:
 - Complex environment-dependent NVD configurations remain possible/unresolved when their platform facts are absent.
 - The current alias registry is intentionally small; expansion requires reviewed fixtures for vendor, product, version, ambiguity, and false-positive behavior.
 - Vulnerability results remain isolated from Security Score and detection severity; integration requires a separate product/security decision after this calibration.
+
+## Sprint 3 Part 2.2A — Storage, Performance & NVD Sync Hardening
+
+### Checkpoint and scope
+
+Part 2 was checkpointed on `main` as `f9991a937ad40bcbde0749b987123afc2988551f`
+(`feat: add conservative vulnerability matching engine v1`) with a clean worktree before 2.2A.
+No alias, CPE-coverage, Node/Python/Java version mapping, Detection Engine, Security Score,
+six-rule, or remediation behavior was changed.
+
+### Isolated cache and migration
+
+`vulnerability-cache.db` now owns complete NVD/KEV data, compact CPE dictionaries and
+relationships, provider generations, sync checkpoints and a durable change outbox. It has its own
+checksummed schema-v1 migration. `sentinel.db` remains schema v8 and owns inventory, evaluations,
+matches and evidence. Only CVE/KEV records referenced by historical matches remain in the main
+database as offline evidence snapshots; their configuration and flattened applicability fields are
+empty by design.
+
+The real legacy import completed in 328.33 seconds and preserved exact repository counts:
+
+| Cache record | Count |
+|---|---:|
+| NVD CVEs | 378,386 |
+| CPE relationships | 3,125,419 |
+| Distinct CPE criteria | 427,514 |
+| CISA KEV entries | 1,665 |
+
+The pre-migration backup outside the repository is schema v8, `integrity_check=ok`, FK=0,
+3,556,425,728 bytes, SHA-256
+`459D49941A3A250978EAA3AB72C597795127CB9E5AF91EF2371ABB87C737CEDF`. A second verified
+post-regression/pre-cleanup backup is 3,557,007,360 bytes, integrity `ok`, FK=0, SHA-256
+`0AAEC1B63B01E97D2A2400F114E331E1795F01412F57B54E7F22299761C73F8D`.
+
+### Storage result
+
+| Metric | Before | After |
+|---|---:|---:|
+| `sentinel.db` | 3,556,425,728 B | 111,763,456 B |
+| `vulnerability-cache.db` | — | 801,083,392 B |
+| Combined SQLite files | 3,556,425,728 B | 912,846,848 B |
+| Absolute reduction | — | 2,643,578,880 B |
+| Total reduction | — | 74.33% |
+| Main-database reduction | — | 96.86% |
+
+Final real main-database state: 81 active software records (qBittorrent 5.2.3 was newly observed
+after the 80-item checkpoint), 6,956 referenced CVE snapshots, 84 referenced KEV snapshots, zero
+legacy CPE rows, `integrity_check=ok`, FK=0. The external cache also passed full integrity and FK
+checks. No database, backup or cache artifact is tracked by Git.
+
+### Matching query and performance
+
+The matching query now runs in two indexed phases: relevant compact CPE relationships, then unique
+CVEs and their single configuration/content payload. A configuration is decompressed and parsed once
+per CVE and reused for every relevant criterion. Invalid/incomplete/hash-mismatched payloads fail
+closed before any main-database evaluation transaction begins.
+
+| Metric | Part 2 before | 2.2A after |
+|---|---:|---:|
+| Same 80 products, wall | 15,102 ms | 6,450 ms |
+| Same 80 products, wall reduction | — | 57.29% |
+| Same 80 products, persisted average | 171.81 ms | 48.40 ms |
+| Same 80 products, p50 | 0 ms | 0 ms |
+| Same 80 products, p95 | 1 ms | 7 ms |
+| Chrome isolated wall | ~13,674 ms | 5,154 ms |
+| Chrome isolated wall reduction | — | 62.31% |
+| Chrome bundle load | not separated | 1,856 ms |
+| Chrome criterion rows | 35,925 | 35,925 |
+| Chrome unique configurations/parses | repeated per criterion | 5,884 |
+| Chrome configuration bytes deserialized | ~439.86 MiB returned repeatedly | 7,857,527 B |
+
+The same-80 post-compaction process snapshot used 28,950,528 bytes of RAM and 88.41% CPU during
+the interval. Whole-millisecond per-software persistence explains the zero p50; the increased p95
+reflects cheap zlib/content snapshot work on a few candidates while total wall and browser cost fell
+materially. The current 81-item real host run also passed in 6,259 ms with `0/0/74/7` because the
+new qBittorrent record remained conservatively unresolved.
+
+### Matching regression
+
+The exact 80-item checkpoint inventory was evaluated from a byte-identical working copy before and
+after main-database cleanup. Both runs produced:
+
+| State | Before | After |
+|---|---:|---:|
+| Confirmed | 0 | 0 |
+| Possible | 0 | 0 |
+| Unresolved | 73 | 73 |
+| Not affected | 7 | 7 |
+| Candidate CVE decisions | 6,294 | 6,294 |
+
+Matching Engine version remains 1. High-only confirmation, incompatible-vendor rejection,
+multiple-candidate ambiguity, unsafe-version failure, CPE `-`, unbounded wildcard failure,
+AND/OR/negate, vulnerable=false, version ranges and KEV-as-enrichment semantics are unchanged.
+
+### Sync hardening
+
+- Full sync keeps a relational page checkpoint and resumes without restarting.
+- Incremental sync persists mode, generation, fixed window start/end, next `startIndex`, pages,
+  totals and provider cursor.
+- Each NVD page and checkpoint advance commits atomically.
+- Incremental windows are at most 119 days with a five-minute overlap.
+- The successful high-water mark is the request limit captured before network work, never the later
+  completion clock.
+- Upsert by CVE and modified time makes overlap/replay idempotent and prevents older payloads from
+  replacing newer CVE/configuration/CPE content.
+- Ready generation, provider state, checkpoint removal and outbox creation commit together. Outbox
+  delivery to the main re-evaluation queue is idempotent and recovered after a crash.
+
+Final provider state is `ready` for NVD (378,386 records) and CISA KEV (1,665 records), with zero
+pending sync checkpoints and zero undelivered outbox records. Resume/window/high-water behavior is
+covered by the passing focused Rust tests; no second 378,386-record full download was performed.
+
+### Failure safety and remaining limits
+
+Cache open, schema, quick-check, FK, codec, size and SHA-256 failures return explicit cache errors.
+The main application still opens and Inventory, baseline, Detection Engine, Security Score and the
+six rules remain usable. Settings has localized English/pt-BR cache-unavailable copy.
+
+Remaining limits are deliberate: the cache still stores the full NVD Boolean tree as compressed
+JSON rather than a normalized AST; the NVD-derived CPE set is not the complete official Dictionary;
+product-specific version extractors and additional aliases remain deferred; environment-dependent
+facts remain unresolved/possible; and vulnerability results remain disconnected from Detection
+Engine, Security Score and remediation.
+
+### 2.2A final quality gates
+
+- `cargo fmt --check`: passed.
+- `cargo check --all-targets --offline`: passed.
+- `cargo clippy --all-targets --offline -- -D warnings`: passed.
+- Rust suite: 119 tests discovered, 108 passed, 0 failed, 11 explicit live/manual tests ignored by default.
+- Focused cache/migration tests: passed, including codec bounds/hash validation and the invariant that
+  an already-ready external cache remains authoritative after legacy main-database compaction.
+- Focused sync tests: passed, including retained interrupted checkpoints, fixed incremental windows,
+  page resume and request high-water semantics.
+- Frontend lint and TypeScript checks: passed.
+- Frontend/i18n suite: 17 files, 61 tests passed.
+- React production build: passed, 1,901 modules; JS 483.67 kB / 140.62 kB gzip; CSS 54.29 kB /
+  10.02 kB gzip.
+- `pnpm audit`: no known vulnerabilities.
+- `cargo audit`: no vulnerabilities; the same 17 explicitly allowed transitive maintenance warnings
+  remain upgrade debt.
+- Tauri release build: passed; EXE, MSI and NSIS artifacts generated in ignored build output.
+- Final release smoke: passed against the compact databases; reopening did not mutate or re-import
+  the already-ready 801,083,392-byte cache.
+- Final SQLite checks: both databases `integrity_check=ok`, FK=0, freelist=0 after compaction and WAL=0.
+- Secret and encoding scans: no credential/private-key pattern, U+FFFD or common mojibake detected.
+- `git diff --check`: passed; Git reported only Windows line-ending conversion notices.

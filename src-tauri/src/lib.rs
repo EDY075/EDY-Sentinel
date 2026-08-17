@@ -22,6 +22,10 @@ mod telemetry;
 #[cfg(windows)]
 mod vulnerability;
 #[cfg(windows)]
+mod vulnerability_cache;
+#[cfg(windows)]
+mod vulnerability_cache_migration;
+#[cfg(windows)]
 mod vulnerability_matching;
 
 use persistence::Database;
@@ -34,9 +38,27 @@ pub fn run() {
         .setup(|app| {
             let app_data = app.path().app_data_dir()?;
             std::fs::create_dir_all(&app_data)?;
-            let database = Database::open(app_data.join("sentinel.db"))?;
+            let primary_database_path = app_data.join("sentinel.db");
+            let database = Database::open(primary_database_path.clone())?;
             #[cfg(windows)]
-            vulnerability::recover_interrupted_syncs(&database)?;
+            let vulnerability_cache = vulnerability_cache::VulnerabilityCache::open(
+                app_data.join("vulnerability-cache.db"),
+            );
+            #[cfg(windows)]
+            {
+                let status = vulnerability_cache.status();
+                if status.state == vulnerability_cache::VulnerabilityCacheState::Ready
+                    && status.writable
+                    && status.schema_version == Some(1)
+                {
+                    let _ = vulnerability_cache_migration::import_legacy_repository_if_needed(
+                        &vulnerability_cache,
+                        &primary_database_path,
+                    );
+                }
+            }
+            #[cfg(windows)]
+            vulnerability::recover_interrupted_syncs(&database, &vulnerability_cache)?;
             #[cfg(windows)]
             let detection = {
                 let engine = detection::DetectionEngine;
@@ -44,6 +66,8 @@ pub fn run() {
                 engine
             };
             app.manage(database);
+            #[cfg(windows)]
+            app.manage(vulnerability_cache);
             #[cfg(windows)]
             app.manage(Arc::new(vulnerability::VulnerabilitySyncManager::default()));
             #[cfg(windows)]
