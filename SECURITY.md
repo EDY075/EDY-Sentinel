@@ -114,6 +114,18 @@ Secrets must be stored in Windows Credential Manager. SQLite may contain only a 
   external outage preserves existing cache rows and cannot poison the behavioral baseline.
 - KEV membership is exploitation context only; it does not independently imply that local
   software is affected or that severity is Critical.
+- NVD and CISA KEV provider transport is HTTPS-only. Stored external advisory references are also
+  limited at ingestion and presentation to credential-free HTTPS URLs; older plaintext HTTP cache
+  records are not rendered as links.
+- The reconstructible vulnerability cache cannot abort application startup. Interrupted provider
+  recovery is best-effort, while the cache error code and degraded coverage remain explicit.
+
+## Release artifact trust
+
+The Sprint 4A technical artifacts are reproducible EXE, MSI, and NSIS outputs, but they are not
+Authenticode-signed. Signing and timestamp verification are mandatory release gates before public
+distribution. The MSI is per-machine and may request installation elevation; normal Sentinel
+runtime collection continues as the current standard user and does not request administrator rights.
 
 ## Data classification
 

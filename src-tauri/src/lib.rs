@@ -60,7 +60,7 @@ pub fn run() {
                 }
             }
             #[cfg(windows)]
-            vulnerability::recover_interrupted_syncs(&database, &vulnerability_cache)?;
+            vulnerability::recover_interrupted_syncs_at_startup(&database, &vulnerability_cache);
             #[cfg(windows)]
             let detection = {
                 let engine = detection::DetectionEngine;

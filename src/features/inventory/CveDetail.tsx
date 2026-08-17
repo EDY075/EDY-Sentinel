@@ -2,6 +2,7 @@ import { ArrowLeft, ExternalLink, ShieldAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Badge } from '../../components/ui/primitives'
 import type { VulnerabilityMatch } from '../../types/inventory'
+import { isSafeExternalReference } from './externalReferences'
 
 export function CveDetail({ match, softwareName, locale, onBack }: { match: VulnerabilityMatch; softwareName: string; locale: string; onBack: () => void }) {
   const { t } = useTranslation('inventory')
@@ -11,6 +12,7 @@ export function CveDetail({ match, softwareName, locale, onBack }: { match: Vuln
   const selectedCpe = match.evidence
     .map((evidence) => evidence.details.selectedCpe)
     .find((value): value is string => typeof value === 'string') ?? match.cpe
+  const references = match.references.filter(isSafeExternalReference)
   return <div className="drawer-content cve-detail">
     <button type="button" className="button button--quiet cve-detail__back" onClick={onBack}><ArrowLeft size={14} />{t('cve.back')}</button>
     <header><span><ShieldAlert size={18} /></span><div><h3>{match.cveId}</h3><p>{match.description}</p></div><Badge tone={tone}>{t(`matchStates.${match.matchState}`)}</Badge></header>
@@ -22,7 +24,7 @@ export function CveDetail({ match, softwareName, locale, onBack }: { match: Vuln
     </dl></section>
     <section className="drawer-section"><h3>CISA KEV</h3>{match.kev ? <><p className="cve-detail__kev-note">{t('cve.kevRole')}</p><dl><Detail label={t('cve.kevName')} value={match.kev.vulnerabilityName} /><Detail label={t('cve.dateAdded')} value={match.kev.dateAdded} /><Detail label={t('cve.dueDate')} value={match.kev.dueDate ?? t('unavailable')} /><Detail label={t('cve.requiredAction')} value={match.kev.requiredAction} /></dl></> : <p className="cve-detail__empty">{t('cve.notKev')}</p>}</section>
     <section className="drawer-section"><h3>{t('cve.evidence')}</h3>{match.evidence.map((evidence) => <article className="cve-evidence" key={evidence.evidenceId}><span><strong>{evidence.source}</strong><small>{date(evidence.observedAt)}</small></span><pre>{JSON.stringify(evidence.details, null, 2)}</pre></article>)}</section>
-    <section className="drawer-section"><h3>{t('cve.references')}</h3><div className="cve-references">{match.references.length ? match.references.map((reference) => <a href={reference} target="_blank" rel="noreferrer" key={reference}>{reference}<ExternalLink size={12} /></a>) : <p>{t('cve.noReferences')}</p>}</div></section>
+    <section className="drawer-section"><h3>{t('cve.references')}</h3><div className="cve-references">{references.length ? references.map((reference) => <a href={reference} target="_blank" rel="noreferrer" key={reference}>{reference}<ExternalLink size={12} /></a>) : <p>{t('cve.noReferences')}</p>}</div></section>
   </div>
 }
 

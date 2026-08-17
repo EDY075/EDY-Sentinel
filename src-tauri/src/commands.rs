@@ -138,21 +138,20 @@ pub async fn sync_vulnerability_provider(
     manager.begin()?;
     let database = database.inner().clone();
     let cache = cache.inner().clone();
-    let manager = manager.inner().clone();
+    let worker_manager = manager.inner().clone();
     let score = score.inner().clone();
     let provider = input.provider;
-    tauri::async_runtime::spawn_blocking(move || {
-        let result = vulnerability::sync_provider(&database, &cache, &manager, &provider).and_then(
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        vulnerability::sync_provider(&database, &cache, &worker_manager, &provider).and_then(
             |status| {
                 score.calculate_and_persist(&database, Vec::new())?;
                 Ok(status)
             },
-        );
-        manager.finish();
-        result
+        )
     })
-    .await
-    .map_err(|_| "Vulnerability repository sync task failed".to_string())?
+    .await;
+    manager.finish();
+    result.map_err(|_| "Vulnerability repository sync task failed".to_string())?
 }
 
 #[tauri::command]

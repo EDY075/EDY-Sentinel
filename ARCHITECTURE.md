@@ -273,7 +273,11 @@ watermark is the request limit, not completion time. CISA KEV uses an independen
 The cache is local and offline-first but not authoritative application state. Missing, corrupt,
 partial, or newer-schema cache files degrade Vulnerability Intelligence explicitly without blocking
 Inventory, baseline, Detection Engine, the six rules, or Security Score. A ready generation and a
-durable outbox make cache-to-main re-evaluation delivery idempotent across crashes.
+durable outbox make cache-to-main re-evaluation delivery idempotent across crashes. Startup recovery
+of an interrupted provider generation is best-effort: cache recovery errors remain visible through
+the cache/provider status contract but cannot abort initialization of the primary application.
+The in-process provider-sync lock is released after the blocking worker join on every result path,
+including exceptional worker termination.
 
 ## Planned module seams
 

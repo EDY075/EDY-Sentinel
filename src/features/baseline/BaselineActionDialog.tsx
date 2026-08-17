@@ -32,7 +32,7 @@ export function BaselineActionDialog({ mode, busy, onClose, onConfirm }: { mode:
     <div className="baseline-dialog">
       <div className="baseline-dialog__warning"><AlertTriangle size={18} /><p>{t(`dialog.warning.${mode}`)}</p></div>
       {mode !== 'complete' && <label>{t('dialog.learningPeriod')}<select value={period} onChange={(event) => setPeriod(Number(event.target.value))}>{periods.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select></label>}
-      <label><Trans ns="baseline" i18nKey="dialog.confirmation" values={{ phrase }} components={{ code: <code /> }} /><input autoFocus value={confirmation} onChange={(event) => setConfirmation(event.target.value)} aria-label={t('dialog.confirmationAria')} /></label>
+      <label><Trans ns="baseline" i18nKey="dialog.confirmation" values={{ phrase }} components={{ code: <code /> }} /><input autoFocus data-initial-focus value={confirmation} onChange={(event) => setConfirmation(event.target.value)} aria-label={t('dialog.confirmationAria')} /></label>
       {error && <p className="form-error" role="alert">{error}</p>}
       <div className="dialog-actions"><button type="button" className="button" onClick={onClose}>{t('dialog.cancel')}</button><button type="button" className={mode === 'reset' ? 'button button--danger-subtle' : 'button button--primary'} disabled={!valid || busy} onClick={() => void submit()}>{busy ? t('dialog.working') : title}</button></div>
     </div>

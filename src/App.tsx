@@ -76,7 +76,7 @@ function App() {
   useEffect(() => { loadTheme().then(setTheme).catch(() => undefined) }, [])
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === 'k') { event.preventDefault(); setPaletteOpen((open) => !open) }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === 'k') { event.preventDefault(); setPaletteQuery(''); setPaletteOpen((open) => !open) }
       if (event.key === 'Escape') { setPaletteOpen(false); setThemeOpen(false) }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -155,7 +155,7 @@ function App() {
       <div className="app-main">
         <header className="topbar">
           <div className="topbar-title"><IconButton className="mobile-menu" aria-label={t('shell:topbar.toggleSidebar')} aria-expanded={mobileOpen} onClick={() => setMobileOpen((value) => !value)}><Menu size={19} /></IconButton><div><span>{t('navigation:workspace')}</span><strong>{heading.topbar}</strong></div></div>
-          <button type="button" className="search-trigger" onClick={() => setPaletteOpen(true)}><Search size={16} /><span>{t('shell:topbar.search')}</span><kbd>Ctrl K</kbd></button>
+          <button type="button" className="search-trigger" onClick={() => { setPaletteQuery(''); setPaletteOpen(true) }}><Search size={16} /><span>{t('shell:topbar.search')}</span><kbd>Ctrl K</kbd></button>
           <div className="topbar-actions">
             <Tooltip label={t('shell:topbar.refresh')}><IconButton aria-label={t('shell:topbar.refresh')} onClick={runRefresh} disabled={refreshing}><RefreshCw size={17} className={refreshing ? 'spin' : ''} /></IconButton></Tooltip>
             <div className="theme-anchor"><Tooltip label={t('shell:topbar.changeTheme')}><IconButton aria-label={t('shell:topbar.changeTheme')} aria-haspopup="menu" aria-expanded={themeOpen} onClick={() => setThemeOpen((open) => !open)}><Palette size={17} /></IconButton></Tooltip>{themeOpen && <ThemeMenu theme={theme} onChange={changeTheme} onClose={() => setThemeOpen(false)} />}</div>
@@ -182,7 +182,7 @@ function App() {
       </div>
 
       <Dialog open={paletteOpen} title={t('shell:palette.title')} onClose={() => { setPaletteOpen(false); setPaletteQuery('') }}>
-        <div className="command-search"><Search size={17} /><input autoFocus aria-label={t('shell:palette.searchLabel')} placeholder={t('shell:palette.placeholder')} value={paletteQuery} onChange={(event) => setPaletteQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && filteredCommands[0]) filteredCommands[0].run() }} /></div>
+        <div className="command-search"><Search size={17} /><input autoFocus data-initial-focus aria-label={t('shell:palette.searchLabel')} placeholder={t('shell:palette.placeholder')} value={paletteQuery} onChange={(event) => setPaletteQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && filteredCommands[0]) filteredCommands[0].run() }} /></div>
         <div className="command-list"><span>{t('shell:palette.available')}</span>{filteredCommands.map((command) => <button type="button" key={command.label} onClick={command.run}><command.icon size={16} /><div><strong>{command.label}</strong><small>{command.detail}</small></div></button>)}{!filteredCommands.length && <div className="command-empty">{t('shell:palette.empty')}</div>}</div>
       </Dialog>
       <BaselineActionDialog mode={baselineAction} busy={baselineBusy} onClose={() => setBaselineAction(null)} onConfirm={runBaselineAction} />

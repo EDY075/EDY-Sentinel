@@ -38,11 +38,14 @@ export function Dialog({ open, title, children, onClose }: { open: boolean; titl
     if (!open) return
     const previouslyFocused = document.activeElement as HTMLElement | null
     const dialog = dialogRef.current
-    dialog?.focus()
+    const focusable = dialog
+      ? Array.from(dialog.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'))
+      : []
+    const autofocus = dialog?.querySelector<HTMLElement>('[data-initial-focus]')
+    ;(autofocus ?? focusable[0] ?? dialog)?.focus()
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose()
       if (event.key !== 'Tab' || !dialog) return
-      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex="-1"])'))
       if (!focusable.length) return
       const first = focusable[0]
       const last = focusable[focusable.length - 1]

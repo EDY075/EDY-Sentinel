@@ -20,6 +20,22 @@ All notable changes follow Keep a Changelog principles.
   explicit limited-coverage qualification instead of hiding the current observable result
 - Software identity coverage and CVE counts are reported as separate metrics
 
+### Fixed
+
+- A missing, unavailable, or corrupt reconstructible vulnerability cache no longer aborts Tauri
+  startup during interrupted-sync recovery
+- The vulnerability-provider sync lock is now released after the worker join even when the worker
+  terminates exceptionally
+- CVE Detail and new NVD ingestion now expose only credential-free HTTPS advisory references;
+  legacy plaintext HTTP references remain stored evidence but are not clickable
+
+### Security
+
+- Sprint 4A dependency audits report no applicable known npm or Rust vulnerability in the Windows
+  runtime graph; unmaintained transitive dependency warnings remain tracked
+- EXE, MSI, and NSIS artifacts remain unsigned development outputs and must not be treated as
+  publicly distributable Release v1.0 artifacts
+
 ### Validation
 
 - Real release: score 86 = base 100 − Detections 0 − Vulnerabilities 14; JRE/VirtualBox/Python
