@@ -66,7 +66,7 @@ The Windows controller could not produce WebView2 screenshots directly, so evide
 from the active Tauri window with Alt+Print and saved from the Windows clipboard. Every delivered
 PNG was opened and visually inspected. Evidence lives outside Git at:
 
-`C:\Users\<USER>\Documents\EDY-Sentinel-QA\Sprint3B`
+`%USERPROFILE%\Documents\EDY-Sentinel-QA\Sprint3B`
 
 The eight numbered files are the delivery set; additional underscore-prefixed files are QA working
 evidence for themes, lifecycle, settings, Inventory, and responsive work-area checks.

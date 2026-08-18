@@ -1,9 +1,9 @@
-# EDY Sentinel 1.0.0 — local release notes
+# EDY Sentinel 1.0.0
 
-Date: 2026-08-17
+Date: 2026-08-18
 
-Status: final local source and artifact preparation for human review. No public release, tag, push,
-or authenticated installer has been created.
+Status: final `UNSIGNED BUILD`. The Windows binaries do not carry an Authenticode publisher
+signature and must not be represented as signed or publisher-authenticated.
 
 ## Highlights
 
@@ -35,10 +35,16 @@ for managed installation; NSIS is the alternative setup and provides an explicit
 `Delete app data` choice during interactive uninstall. Silent uninstall and MSI uninstall preserve
 application data.
 
-These local outputs are marked `UNSIGNED BUILD`. Do not bypass organizational Windows security
-policy or distribute them as authenticated publisher artifacts. Public distribution requires a
-legitimate Authenticode certificate, trusted timestamp, and successful verification of EXE, MSI,
-and NSIS as described in `CODE_SIGNING.md`.
+These outputs are marked `UNSIGNED BUILD`. Do not bypass organizational Windows security policy or
+represent them as authenticated publisher artifacts. MSI and NSIS are the supported installation
+assets; the standalone executable is retained for local QA and troubleshooting rather than normal
+installation.
+
+## Code signing
+
+The version 1.0.0 binaries do not have an Authenticode signature. The production signing pipeline
+is prepared and remains fail-closed for signed releases, but legitimate publisher authentication
+depends on an appropriate certificate and trusted timestamp that are not currently available.
 
 ## Local data and offline behavior
 
@@ -72,15 +78,15 @@ The final local preparation preserves the audited reference state when host fact
 These values describe the audited local host state, not fixed demo data, a universal expected
 result, or a guarantee that another endpoint is secure.
 
-## Known limitations and public gates
+## Known limitations
 
-- `PUBLIC SIGNED RELEASE` is blocked until a legitimate Authenticode identity signs and timestamps
-  all three Windows artifacts.
+- The binaries are an `UNSIGNED BUILD`; Authenticode publisher identity and trusted timestamp
+  verification are not present in this release.
 - An empty-profile first run and a completely network-isolated provider attempt require a
   disposable Windows account or VM; Tauri's Known Folder resolution cannot be redirected safely
   with process-level `APPDATA` overrides on the development account.
-- Remaining public visual acceptance includes an individual CVE Detail capture and physical
-  1920x1080, 1600x900, 1366x768, and 1280x720 evidence.
+- Final responsive validation used controlled WebView2 viewports; it is not a substitute for every
+  physical monitor, scaling configuration, or enterprise Windows policy.
 - Product identity is deliberately narrow and fails closed when vendor, product, version, or NVD
   applicability evidence is ambiguous.
 - The six local rules are conservative observability rules, not full EDR or malware classification.

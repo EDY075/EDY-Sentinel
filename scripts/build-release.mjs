@@ -52,7 +52,7 @@ if (!thumbprint) {
   writeTrustMarker([
     unsignedLabel,
     `Version: ${packageVersion}`,
-    'Public distribution is blocked until Authenticode signing and timestamp verification pass.',
+    'Public distribution must disclose that Authenticode signing and timestamp verification have not passed.',
   ])
   process.exit(0)
 }

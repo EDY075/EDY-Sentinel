@@ -6,9 +6,10 @@ connections, vulnerabilities, and explainable risk. It combines native endpoint 
 behavioral baseline, factual security events, six explainable detection rules, conservative
 software-to-CVE matching, and an auditable Security Score.
 
-Version `1.0.0` is the final local release tree prepared for human review. Its EXE, MSI, and NSIS
-outputs remain unsigned local artifacts and are not approved for public distribution until a
-legitimate Authenticode certificate and trusted timestamp pass the release verification gate.
+Version `1.0.0` is the final release tree. Its EXE, MSI, and NSIS outputs are explicitly classified
+as `UNSIGNED BUILD`: they are not authenticated publisher artifacts. Any distribution of these
+files must preserve that visible disclosure; a future signed release remains subject to the
+fail-closed Authenticode and trusted-timestamp verification gate.
 
 ## What the application does
 
@@ -55,7 +56,9 @@ managed Windows installation; NSIS provides the alternative setup executable. Cu
 remove installer-owned binaries, shortcuts, and registration while preserving the application data
 directory by default.
 
-Public installation packages must not be distributed until all of the following are true:
+Unsigned installation packages may be distributed only with explicit release approval and a
+visible `UNSIGNED BUILD` notice. They must not be represented as signed or publisher-authenticated.
+For a signed release, all of the following remain mandatory:
 
 1. EXE, MSI, and NSIS are signed by the legitimate publisher identity;
 2. every signature includes a trusted timestamp;
@@ -118,7 +121,8 @@ API key, or required external credential.
 
 ## Known limitations
 
-- The public signed release remains blocked until a legitimate Authenticode credential is supplied.
+- Version 1.0.0 binaries are an `UNSIGNED BUILD`; legitimate Authenticode publisher authentication
+  remains unavailable until an appropriate certificate and trusted timestamp are supplied.
 - Product identity is intentionally narrow; unresolved software is not guessed into a CPE.
 - Offline operation uses already persisted vulnerability evidence/cache; external synchronization
   naturally remains unavailable without network access.

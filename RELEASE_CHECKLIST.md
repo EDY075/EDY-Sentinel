@@ -2,7 +2,8 @@
 
 Local final version: `1.0.0`
 
-Public release: blocked until Authenticode requirements pass.
+Version 1.0.0 release channel: `UNSIGNED BUILD`. Public distribution requires a visible unsigned
+notice and must not claim Authenticode publisher authentication.
 
 ## Source and version
 
@@ -33,15 +34,15 @@ Public release: blocked until Authenticode requirements pass.
 - [x] English and Português (Brasil) on the real Tauri release lineage.
 - [x] Sentinel Blue, Cyber Green, Terminal, and Spectrum on the real Tauri release lineage.
 - [x] Configured 1440x900 release-lineage evidence.
-- [ ] Physical 1920x1080, 1600x900, 1366x768, and 1280x720 final captures.
+- [x] Responsive WebView validation at 1920x1080, 1600x900, 1366x768, and 1280x720; evidence is
+  automated viewport QA rather than physical-monitor capture.
 - [x] Overview, Processes, Network, Inventory, Detections, Security Score, and Settings reviewed.
-- [ ] System/Services, Activity/Security Events, and individual CVE Detail remain in the final
+- [x] System/Services, Activity/Security Events, and individual CVE Detail included in the final
   release-environment visual matrix.
 - [x] Keyboard navigation, command-palette focus, dialogs/drawers, ARIA contracts, tooltips,
   reduced-motion CSS, and theme contrast reviewed; UIA geometry limitation is recorded.
 - [x] Eleven real screenshots are stored outside Git.
-- [ ] Individual CVE Detail capture remains unavailable through the current WebView2 geometry
-  boundary.
+- [x] Individual CVE Detail inspected through the final WebView2 QA path.
 
 ## Technical gates
 
@@ -53,11 +54,17 @@ Public release: blocked until Authenticode requirements pass.
 - [x] Performance compared with Sprint 4A/4B evidence.
 - [x] `git diff --check` and final secret/artifact scan pass.
 
-## Public signing gate
+## Authenticode gate (not claimed by version 1.0.0)
 
 - [ ] Legitimate publisher certificate/private key injected from protected release infrastructure.
 - [ ] SHA-256 Authenticode signature on application EXE, MSI, and NSIS.
 - [ ] Trusted timestamp on all three artifacts.
 - [ ] Post-signature verification passes and immutable public hashes are recorded.
-- [ ] Public release approval, tag, push, and GitHub Release performed by an authorized release
-  operator only after every gate above is complete.
+
+## Unsigned public-release gate
+
+- [x] EXE, MSI, and NSIS are explicitly classified as `UNSIGNED BUILD`.
+- [x] Release notes visibly disclose the missing Authenticode signature and the prepared signing
+  pipeline.
+- [x] Final SHA-256 hashes are calculated after the final build.
+- [ ] Tag, push, and GitHub Release completed and verified by an authorized release operator.

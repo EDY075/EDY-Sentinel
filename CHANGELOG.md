@@ -4,30 +4,9 @@ All notable changes follow Keep a Changelog principles.
 
 ## [Unreleased]
 
-No public release has been published.
+No changes recorded after 1.0.0.
 
-### Changed
-
-- Established a distinct Windows endpoint intelligence identity with a compact desktop shell,
-  device-first Overview hierarchy, less repetitive surfaces, and clearer separation from SOC/SIEM
-  and endpoint-protection visual patterns
-- Promoted Security Score to a recognizable technical 86/100 posture plate with segmented scale,
-  preserved Detections/Vulnerabilities/Coverage inputs, and no percentage representation
-- Refined Inventory, operational tables, row selection, CVE presentation, and all side drawers
-  under a shared bilingual Endpoint Inspector visual language
-- Rebalanced Sentinel Blue, Cyber Green, Terminal, and Spectrum while preserving semantic tokens,
-  contrast, keyboard focus, reduced motion, pt-BR, and English
-
-### Validation
-
-- Real Tauri release QA covered Overview, Processes, Network, Services, Inventory, CVE Detail,
-  Detections, Security Events, six enabled v1 rules, Security Score, and Settings in all four themes
-- Responsive WebView validation passed at 1920x1080, 1600x900, 1440x900, 1366x768, and 1280x720
-  without detected horizontal overflow or control/heading clipping; screenshots remain outside Git
-- Regression remained score 86 = 100 − 0 − 14, formula v2, 0 active Detections, 31 Confirmed,
-  1 Possible at impact zero, 1 Confirmed KEV, Ready baseline, and healthy collectors
-
-## [1.0.0] — 2026-08-17 (final local preparation)
+## [1.0.0] — 2026-08-18
 
 ### Added
 
@@ -39,13 +18,19 @@ No public release has been published.
   offline evidence, and isolated reconstructible vulnerability cache
 - English and Português (Brasil), four semantic-token themes, keyboard/focus contracts, responsive
   layouts, user guide, release notes, and final local validation report
+- Distinct Windows endpoint intelligence identity with a compact desktop shell, device-first
+  Overview, a recognizable technical Security Score plate, instrument-style Inventory, and shared
+  bilingual Endpoint Inspector drawers
 
 ### Changed
 
 - Promoted npm, Cargo, Tauri, Settings, MSI, NSIS, executable, and documentation metadata from
   `1.0.0-rc.1` to final local version `1.0.0`
-- Final unsigned local output is marked `UNSIGNED BUILD`; authenticated public distribution remains
-  fail-closed until legitimate Authenticode signing and trusted timestamp verification succeed
+- Refined Sentinel Blue, Cyber Green, Terminal, and Spectrum while preserving semantic tokens,
+  contrast, keyboard focus, reduced motion, pt-BR, and English
+- Final unsigned output is marked `UNSIGNED BUILD` and must not be represented as signed or
+  publisher-authenticated; the signed-release pipeline remains fail-closed until legitimate
+  Authenticode signing and trusted timestamp verification succeed
 
 ### Security
 
@@ -59,8 +44,12 @@ No public release has been published.
 
 - Final frontend, Rust, dependency, database, installer, performance, secret, artifact, localization,
   theme, and Authenticode fail-closed gates are recorded in `SPRINT5B_FINAL_REPORT.md`
-- EXE, MSI, and NSIS are local unsigned review artifacts; no tag, push, public installer, or release
-  was created
+- Real Tauri QA covered Overview, Processes, Network, Services, Inventory, CVE Detail, Detections,
+  Security Events, six enabled v1 rules, Security Score, and Settings in all four themes
+- Responsive WebView validation passed at 1920x1080, 1600x900, 1440x900, 1366x768, and 1280x720
+  without detected horizontal overflow or control/heading clipping; screenshots remain outside Git
+- Regression remained score 86 = 100 − 0 − 14, formula v2, 0 active Detections, 31 Confirmed,
+  1 Possible at impact zero, 1 Confirmed KEV, Ready baseline, and healthy collectors
 
 ## [1.0.0-rc.1] — 2026-08-17 (technical release candidate)
 

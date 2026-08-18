@@ -260,7 +260,7 @@ Small presentation defects fixed during visual QA:
 - drawer horizontal overflow and the clipped Confirmed badge were corrected without redesign.
 
 Real screenshots were written outside Git under
-`C:\Users\<USER>\.codex\visualizations\2026\08\17\01a0113f-c75f-73d1-a1df-15df76b3982e\sprint3_2_2c_visual_qa`:
+`%USERPROFILE%\.codex\visualizations\<session>\sprint3_2_2c_visual_qa`:
 
 1. `01_inventory_ptbr_sentinel_blue_1920x1080.png`
 2. `02_product_identity_java_ptbr_1920x1080.png`

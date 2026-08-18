@@ -114,7 +114,7 @@ reduced-motion behavior remain supported.
 - Hardening migration: `src-tauri/migrations/0005_sprint2_hardening.sql`; migration 0004
   remains unchanged.
 - Existing data is preserved; migration is additive and transactional.
-- Real database: `C:\Users\<USER>\AppData\Roaming\com.edy.sentinel\sentinel.db`
+- Real database: `%APPDATA%\com.edy.sentinel\sentinel.db`
 - Sprint 2A validation size after the controlled scenario: **15,790,080 bytes**
 - `PRAGMA integrity_check`: **ok**
 - Controlled state: 3 preserved baseline versions and 526 factual events, including ambient
@@ -219,12 +219,12 @@ and `glib 0.18.5` has an allowed unsoundness warning. No RustSec vulnerability w
 
 All files below are direct 1920×1080 PNG captures of the final real Tauri WebView2 surface:
 
-1. `C:\Users\<USER>\Documents\Codex\2026-08-16\files-pasted-by-the-user-voc\outputs\EDY-Sentinel-sprint2a\01-overview-baseline-learning-1920x1080.png`
-2. `C:\Users\<USER>\Documents\Codex\2026-08-16\files-pasted-by-the-user-voc\outputs\EDY-Sentinel-sprint2a\02-overview-baseline-ready-1920x1080.png`
-3. `C:\Users\<USER>\Documents\Codex\2026-08-16\files-pasted-by-the-user-voc\outputs\EDY-Sentinel-sprint2a\03-security-events-1920x1080.png`
-4. `C:\Users\<USER>\Documents\Codex\2026-08-16\files-pasted-by-the-user-voc\outputs\EDY-Sentinel-sprint2a\04-security-event-detail-1920x1080.png`
-5. `C:\Users\<USER>\Documents\Codex\2026-08-16\files-pasted-by-the-user-voc\outputs\EDY-Sentinel-sprint2a\05-overview-baseline-details-1920x1080.png`
-6. `C:\Users\<USER>\Documents\Codex\2026-08-16\files-pasted-by-the-user-voc\outputs\EDY-Sentinel-sprint2a\06-terminal-ready-1920x1080.png`
+1. `01-overview-baseline-learning-1920x1080.png`
+2. `02-overview-baseline-ready-1920x1080.png`
+3. `03-security-events-1920x1080.png`
+4. `04-security-event-detail-1920x1080.png`
+5. `05-overview-baseline-details-1920x1080.png`
+6. `06-terminal-ready-1920x1080.png`
 
 Screenshots remain outside the repository and are not tracked by Git.
 

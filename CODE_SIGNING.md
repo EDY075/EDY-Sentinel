@@ -1,12 +1,18 @@
 # Windows code signing
 
-EDY Sentinel public Windows releases require a legitimate Authenticode publisher
-certificate and a trusted timestamp. A self-signed certificate is not a production
+EDY Sentinel authenticated-publisher Windows releases require a legitimate Authenticode
+publisher certificate and a trusted timestamp. A self-signed certificate is not a production
 substitute. Certificate files, private keys, tokens, passwords, and cloud-signing
 credentials must never be committed, logged, embedded in React, or passed on a command
 line.
 
-The following artifacts must all validate before publication:
+Version 1.0.0 may be distributed as an explicitly approved `UNSIGNED BUILD` only when the release
+page and artifact report visibly state that no Authenticode signature has been applied. Such files
+must never be described as signed or publisher-authenticated. This exception does not weaken the
+fail-closed requirements below for any release that claims Authenticode publisher identity.
+
+The following artifacts must all validate before any publication that claims Authenticode
+publisher identity:
 
 1. `src-tauri/target/release/edy-sentinel.exe`;
 2. the MSI under `src-tauri/target/release/bundle/msi/`;
@@ -44,7 +50,7 @@ validation, post-build verification, and the build-trust marker.
 - `EDY_SENTINEL_TIMESTAMP_URL`: required certificate-provider timestamp endpoint.
 - `EDY_SENTINEL_TIMESTAMP_RFC3161`: optional `true` or `false`; use the value required by
   the provider. Default is `false` for legacy Authenticode timestamping.
-- `EDY_SENTINEL_REQUIRE_SIGNED_RELEASE=1`: mandatory in a public release job. It makes a
+- `EDY_SENTINEL_REQUIRE_SIGNED_RELEASE=1`: mandatory in a signed public release job. It makes a
   missing signing identity a hard failure.
 
 The private-key credential is injected before this wrapper by the protected release
@@ -90,7 +96,8 @@ Other development versions print and record:
 
 `UNSIGNED DEVELOPMENT BUILD`
 
-Such artifacts may be used for local QA or human review but must not be published as a public signed release.
+Such artifacts may be used for local QA or human review. They may be published only under the
+explicit unsigned-release policy above and must not be published as a public signed release.
 If `EDY_SENTINEL_REQUIRE_SIGNED_RELEASE=1` is set, missing thumbprint or timestamp input fails
 before compilation. The wrapper never generates a certificate, never downgrades to a
 self-signed identity, and never claims that an unsigned artifact is signed.
