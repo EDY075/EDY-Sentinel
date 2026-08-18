@@ -1,4 +1,5 @@
-import { Check, Database, Download, Languages, RefreshCw, X } from 'lucide-react'
+import { getVersion } from '@tauri-apps/api/app'
+import { Check, Database, Download, Info, Languages, RefreshCw, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { changeLanguage, getActiveLanguage, type SupportedLanguage } from '../../i18n'
@@ -16,6 +17,8 @@ export function SettingsView() {
   const current = getActiveLanguage()
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<'saved' | 'error' | null>(null)
+  const [appVersion, setAppVersion] = useState<string>()
+  useEffect(() => { void getVersion().then(setAppVersion).catch(() => setAppVersion(t('settings:about.unavailable'))) }, [t])
 
   const selectLanguage = async (language: SupportedLanguage) => {
     if (language === current || busy) return
@@ -61,6 +64,20 @@ export function SettingsView() {
         {result && <p role={result === 'error' ? 'alert' : 'status'} data-error={result === 'error' || undefined}>{t(`settings:language.${result === 'error' ? 'saveError' : 'saved'}`)}</p>}
       </footer>
       <span className="sr-only" aria-live="polite">{busy ? t('common:states.loading') : result ? t(`settings:language.${result === 'error' ? 'saveError' : 'saved'}`) : ''}</span>
+    </section>
+    <section className="settings-view panel" aria-labelledby="about-settings-title">
+      <header className="settings-view__header">
+        <span><Info size={19} /></span>
+        <div>
+          <h3 id="about-settings-title">{t('settings:sections.about')}</h3>
+          <p>{t('settings:about.description')}</p>
+        </div>
+      </header>
+      <dl className="provider-card">
+        <div><dt>{t('settings:about.product')}</dt><dd>{t('common:appName')}</dd></div>
+        <div><dt>{t('settings:about.version')}</dt><dd>{appVersion ?? t('common:states.loading')}</dd></div>
+        <div><dt>{t('settings:about.channel')}</dt><dd>{t('settings:about.releaseCandidate')}</dd></div>
+      </dl>
     </section>
     <ProviderSettings />
   </div>

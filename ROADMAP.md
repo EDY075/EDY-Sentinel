@@ -104,6 +104,18 @@ The codebase is technically ready for the v1 review checkpoint. Public distribut
 blocked until a legitimate Authenticode identity signs and timestamps EXE, MSI and NSIS, and the
 manual clean-install plus remaining desktop visual matrix are completed in the release environment.
 
+## Sprint 5A — v1.0 release candidate (technical work complete)
+
+- Align version `1.0.0-rc.1`, Windows metadata and stable MSI upgrade identity
+- Validate clean first run, upgrade preservation, uninstall policy, offline/cache degradation,
+  security regressions, performance and real desktop experience
+- Produce unsigned technical RC artifacts, user documentation, release checklist and final report
+- Keep public signed release blocked until legitimate Authenticode and timestamp verification pass
+
+The technical RC is ready for final-release preparation. Public release acceptance still requires a
+legitimate signature/timestamp plus the disposable-profile first-run and remaining desktop matrix
+that cannot be isolated safely on the development account.
+
 `EDY-PROC-003` remains deferred: current executable identity is not stable enough to infer
 tampering from metadata changes without bounded content identity. High/Critical rules,
 production calibration, external intelligence, notifications native to Windows, automated

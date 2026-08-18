@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -14,6 +14,10 @@ const timestampUrl = process.env.EDY_SENTINEL_TIMESTAMP_URL ?? ''
 const requireSigned = process.env.EDY_SENTINEL_REQUIRE_SIGNED_RELEASE === '1'
 const tspValue = process.env.EDY_SENTINEL_TIMESTAMP_RFC3161 ?? 'false'
 const packageManagerScript = process.env.npm_execpath
+const packageVersion = JSON.parse(readFileSync(join(repositoryRoot, 'package.json'), 'utf8')).version
+const unsignedLabel = /-rc\./i.test(packageVersion)
+  ? 'UNSIGNED RELEASE CANDIDATE'
+  : 'UNSIGNED DEVELOPMENT BUILD'
 
 function run(command, args) {
   const result = spawnSync(command, args, { cwd: repositoryRoot, stdio: 'inherit' })
@@ -31,6 +35,8 @@ function runTauriBuild(extraArguments = []) {
     console.error('Run this wrapper through `pnpm release:build`.')
     process.exit(2)
   }
+  // Prevent a prior version from being mistaken for a current release artifact.
+  rmSync(bundleRoot, { recursive: true, force: true })
   run(process.execPath, [packageManagerScript, 'exec', 'tauri', 'build', ...extraArguments, ...process.argv.slice(2)])
 }
 
@@ -39,10 +45,11 @@ if (!thumbprint) {
     console.error('Signed release required, but EDY_SENTINEL_AUTHENTICODE_THUMBPRINT is absent.')
     process.exit(2)
   }
-  console.warn('UNSIGNED DEVELOPMENT BUILD')
+  console.warn(unsignedLabel)
   runTauriBuild()
   writeTrustMarker([
-    'UNSIGNED DEVELOPMENT BUILD',
+    unsignedLabel,
+    `Version: ${packageVersion}`,
     'Public distribution is blocked until Authenticode signing and timestamp verification pass.',
   ])
   process.exit(0)

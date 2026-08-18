@@ -2,6 +2,13 @@
 
 ## Decision summary
 
+The v1.0 release-candidate architecture uses application version `1.0.0-rc.1` and SQLite schema 11.
+The MSI maps the prerelease to numeric installer version `1.0.0.1` while retaining a stable upgrade
+code. This packaging mapping does not alter database, Detection, matching, or score versions.
+The Windows installer publisher remains the established identifier-derived `edy` value for NSIS
+upgrade compatibility; `EDY Sentinel contributors` remains source authorship and executable
+copyright, not a claimed incorporated company or signing identity.
+
 EDY Sentinel uses a modular local-first monolith. React owns presentation. Rust owns collection, validation, application logic, and persistence. Tauri commands form the typed trust boundary.
 
 ```text

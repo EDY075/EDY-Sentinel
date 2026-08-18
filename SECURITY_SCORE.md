@@ -1,5 +1,8 @@
 # Security Score v1 and v2
 
+Release-candidate contract: application `1.0.0-rc.1` retains formula version `2`. Version and
+installer metadata do not recalculate or reinterpret historical score snapshots.
+
 ## Meaning
 
 Security Score is the observed endpoint posture under the coverage currently available to EDY

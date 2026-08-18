@@ -106,9 +106,9 @@ Validated in the real English/Cyber Green release at configured 1440x900:
 
 Real screenshots kept outside Git:
 
-1. `C:\Users\<USER>\AppData\Local\Temp\EDY-Sentinel-Sprint4B-Screenshots\overview-en-cyber-green-1440x900.png`;
-2. `C:\Users\<USER>\AppData\Local\Temp\EDY-Sentinel-Sprint4B-Screenshots\inventory-en-cyber-green-1440x900.png`;
-3. `C:\Users\<USER>\AppData\Local\Temp\EDY-Sentinel-Sprint4B-Screenshots\security-score-en-cyber-green-1440x900.png`.
+1. `%LOCALAPPDATA%\Temp\EDY-Sentinel-Sprint4B-Screenshots\overview-en-cyber-green-1440x900.png`;
+2. `%LOCALAPPDATA%\Temp\EDY-Sentinel-Sprint4B-Screenshots\inventory-en-cyber-green-1440x900.png`;
+3. `%LOCALAPPDATA%\Temp\EDY-Sentinel-Sprint4B-Screenshots\security-score-en-cyber-green-1440x900.png`.
 
 Limitations are explicit: this pass did not obtain honest real-release evidence for pt-BR, Sentinel
 Blue, Terminal, Spectrum, 1920x1080, 1600x900, 1366x768 or 1280x720, nor an individual CVE Detail
@@ -138,9 +138,11 @@ in a disposable Windows VM snapshot or dedicated test account:
 8. Only for an explicit erase-data test, remove the preserved directory after obtaining separate
    user consent and a backup; current installers intentionally provide no silent data deletion.
 
-Uninstall policy is preserve-by-default: installer-owned binaries/shortcuts/registration are
-removed; endpoint history, user preferences, reconstructible cache and future logs remain until an
-explicit future user-selected data-removal action exists.
+Sprint 5A follow-up: generated NSIS already contains an explicit unchecked `Delete app data` option;
+the earlier statement that the option was only future work was incorrect. Preserve-by-default still
+holds: silent NSIS and MSI uninstall remove installer-owned binaries/shortcuts/registration while
+leaving endpoint history, preferences, reconstructible cache and future logs. Data removal requires
+the user's explicit interactive NSIS selection.
 
 ## Final quality gates
 

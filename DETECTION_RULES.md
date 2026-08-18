@@ -1,5 +1,9 @@
 # EDY Sentinel Detection Rules
 
+Release-candidate contract: application `1.0.0-rc.1`, registry version `v1`, exactly six built-in
+rules. Packaging and documentation changes do not introduce test rules or change triggers,
+exclusions, deduplication, reopen behavior, severity, confidence, or evidence requirements.
+
 ## Rule policy
 
 The built-in Sprint 2B registry contains exactly six enabled, versioned rules. Rules consume

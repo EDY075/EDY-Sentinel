@@ -5,6 +5,7 @@ export const settings = {
   sections: {
     appearance: 'Appearance',
     language: 'Language',
+    about: 'About',
   },
   language: {
     label: 'Interface language',
@@ -16,5 +17,13 @@ export const settings = {
       en: 'English',
       ptBR: 'Portuguese (Brazil)',
     },
+  },
+  about: {
+    description: 'Review the installed product version and release channel.',
+    product: 'Product',
+    version: 'Version',
+    channel: 'Channel',
+    releaseCandidate: 'Release candidate',
+    unavailable: 'Unavailable',
   },
 } as const

@@ -116,7 +116,9 @@ If a translation key is missing in `pt-BR`, i18next falls back to `en`. Resource
 
 Tests cover locale normalization and startup priority, English fallback and missing keys, runtime switching, Tauri/browser persistence, catalog parity, plural rules, date and number formatting, localized severity labels, score states, all six rule IDs, and security presentation copy.
 
-The 16 namespaces contain 969 leaf keys per locale with exact key and interpolation parity.
+The 18 namespaces contain matching English and pt-BR catalogs with exact key and interpolation
+parity. Release-candidate product version and channel labels are presentation-only and do not alter
+stored technical values.
 
 Sprint 2C visual verification used the real Tauri WebView in both languages at 1920×1080,
 1600×900, 1440×900, 1366×768, and 1280×720. Sentinel Blue, Cyber Green, Terminal, and

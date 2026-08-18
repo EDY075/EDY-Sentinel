@@ -4,7 +4,15 @@ All notable changes follow Keep a Changelog principles.
 
 ## [Unreleased]
 
+No public release has been published.
+
+## [1.0.0-rc.1] — 2026-08-17 (technical release candidate)
+
 ### Added
+
+- Consistent v1 release-candidate version and Windows product metadata across npm, Cargo, Tauri,
+  Settings, MSI, and NSIS packaging
+- Professional user guide and explicit technical/public release checklist
 
 - Security Score formula v2 with a bounded Vulnerability Intelligence contribution, canonical
   product aggregation, KEV post-match prioritization, explicit coverage state, and immutable
@@ -17,6 +25,7 @@ All notable changes follow Keep a Changelog principles.
   preservation tests
 - Production Authenticode build/verification infrastructure and explicit unsigned-development
   trust marker without a repository-held certificate or private key
+- Explicit `UNSIGNED RELEASE CANDIDATE` marker for unsigned prerelease artifacts
 
 ### Changed
 
@@ -47,6 +56,13 @@ All notable changes follow Keep a Changelog principles.
   publicly distributable Release v1.0 artifacts
 
 ### Validation
+
+- Clean NSIS installation and silent uninstall succeeded in a temporary install directory; upgrade
+  from 0.1.0 preserved the same install location and both application-database hashes
+- Real Tauri RC validated English/pt-BR and Sentinel Blue, Cyber Green, Terminal, and Spectrum at
+  configured 1440x900; remaining physical resolutions and CVE Detail capture stay manual gates
+- Score regression remained 86 = 100 − 0 − 14 with 31 Confirmed, 1 Possible at impact zero,
+  1 KEV Confirmed, formula v2, and six enabled v1 rules
 
 - Real release: score 86 = base 100 − Detections 0 − Vulnerabilities 14; JRE/VirtualBox/Python
   impacts 6/4/4; 31 Confirmed, 1 KEV Confirmed, and 1 Possible with impact zero

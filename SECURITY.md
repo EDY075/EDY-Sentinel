@@ -123,19 +123,23 @@ Secrets must be stored in Windows Credential Manager. SQLite may contain only a 
 ## Release artifact trust
 
 The technical artifacts are reproducible EXE, MSI, and NSIS outputs, but local builds without a
-legitimate certificate are explicitly `UNSIGNED DEVELOPMENT BUILD` outputs. `CODE_SIGNING.md` and
+legitimate certificate are explicitly `UNSIGNED DEVELOPMENT BUILD` or
+`UNSIGNED RELEASE CANDIDATE` outputs according to their package channel. `CODE_SIGNING.md` and
 the release wrapper define fail-closed Windows Certificate Store injection, SHA-256 signing,
 timestamping, and post-build verification for all three artifacts. Signing and timestamp validation
 remain mandatory public-release gates. The MSI is per-machine and may request installation
 elevation; normal Sentinel runtime collection continues as the current standard user and does not
 request administrator rights.
 
-Current Tauri installers have no custom uninstall action that removes application data. Uninstall
-removes installed binaries, shortcuts and installer-owned registration. `sentinel.db`, user
-preferences and the reconstructible `vulnerability-cache.db` remain under the user's application
-data directory. Future logs must follow the same preserve-by-default rule. A future installer may
-offer an explicit user-selected data-removal option, but silent deletion of endpoint history or
-settings is prohibited.
+Version `1.0.0-rc.1` is a technical candidate only. Its unsigned artifacts may be used for local
+validation but must not be represented as authenticated publisher output or a public final release.
+
+Uninstall removes installed binaries, shortcuts and installer-owned registration. MSI does not
+remove application data. NSIS preserves data by default and exposes an explicit unchecked
+`Delete app data` choice in the interactive uninstaller; selecting it removes the bundle's Roaming
+and Local AppData directories. Silent uninstall leaves that choice unset. `sentinel.db`, user
+preferences, the reconstructible `vulnerability-cache.db`, and future logs therefore follow the
+preserve-by-default policy. Silent deletion of endpoint history or settings is prohibited.
 
 Vulnerability retention policy v1 deletes only obsolete complete evaluation families outside the
 documented 100-recent/daily-90/monthly-730 checkpoints. The latest family for every software record

@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "EDY Sentinel",
-  "version": "0.1.0",
+  "version": "1.0.0-rc.1",
   "identifier": "com.edy.sentinel",
   "build": {
     "frontendDist": "../dist",
@@ -29,6 +29,11 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "edy",
+    "copyright": "Copyright © 2026 EDY Sentinel contributors",
+    "category": "Utility",
+    "shortDescription": "Local-first Windows security observability",
+    "longDescription": "EDY Sentinel provides local Windows telemetry, behavioral baselines, explainable detections, conservative vulnerability intelligence, and an auditable Security Score.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -36,6 +41,12 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "windows": {
+      "wix": {
+        "version": "1.0.0.1",
+        "upgradeCode": "229d16f0-7d28-522e-8cc0-6a06750db9a7"
+      }
+    },
     "android": {
       "debugApplicationIdSuffix": ".debug"
     }

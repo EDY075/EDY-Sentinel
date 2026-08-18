@@ -20,6 +20,9 @@ operator imports or exposes the legitimate certificate and non-exportable privat
 certificate thumbprint. `scripts/build-release.mjs` creates an ephemeral Tauri config in
 the operating-system temporary directory and removes it after the build.
 
+Before every build the wrapper removes only the ignored bundle-output directory. This prevents a
+stale installer from a previous version from entering the three-artifact verification set.
+
 The required order is:
 
 1. build and test the frontend and Rust binary;
@@ -66,7 +69,7 @@ and a timestamp certificate for every artifact. A failure exits non-zero and blo
 The wrapper writes `BUILD-TRUST.txt` beside the generated bundles; this file is build output
 and remains ignored by Git.
 
-## Development builds without a certificate
+## Unsigned development and release-candidate builds
 
 Local development must remain buildable without any signing credential:
 
@@ -74,8 +77,12 @@ Local development must remain buildable without any signing credential:
 pnpm release:build
 ```
 
-When no thumbprint is available and signed release mode is not required, the wrapper prints
-and records exactly:
+When no thumbprint is available and signed release mode is not required, the wrapper reads the
+package version. A prerelease matching `-rc.` prints and records:
+
+`UNSIGNED RELEASE CANDIDATE`
+
+Other local versions print and record:
 
 `UNSIGNED DEVELOPMENT BUILD`
 
