@@ -142,13 +142,21 @@ pnpm tauri dev
 
 Veja os pré-requisitos e gates no [guia de desenvolvimento](../development/setup.md).
 
-## Limitações conhecidas
+## Escopo e limites da v1.0
 
-- Os pacotes v1.0.0 são unsigned e não possuem identidade autenticada de editor.
-- Identidades de software ambíguas permanecem não resolvidas de forma intencional.
-- Sem internet, o cache local continua disponível, mas NVD/CISA não pode ser atualizado.
-- As seis regras v1 fornecem observabilidade explicável; não são classificação de malware ou EDR completo.
-- A pontuação descreve a postura observada sob a cobertura atual; não é garantia de segurança.
-- Remediação automática, bloqueio e serviços externos de reputação estão fora do escopo da v1.
+O EDY Sentinel v1.0 é um produto funcional de **Windows Endpoint Intelligence** e
+**Security Posture Monitoring**, voltado à observação e análise local do endpoint. Telemetria,
+processos, rede, serviços, inventário de software, baseline comportamental, Eventos de Segurança,
+Detection Engine, Vulnerability Intelligence e Pontuação de Segurança são recursos reais e
+operacionais.
+
+Dentro desse escopo definido de monitoramento e análise:
+
+- O EDY Sentinel complementa as operações de segurança do endpoint; não pretende substituir antivírus ou uma plataforma EDR completa.
+- Remediação automática, bloqueio de processos ou rede, serviços de reputação e proteção EDR completa estão fora do escopo da v1.0.
+- A Pontuação de Segurança representa a postura observável sob a cobertura atual, não uma garantia de segurança.
+- Softwares cuja identidade não pode ser sustentada por evidências suficientes permanecem não resolvidos por decisão conservadora.
+- A operação offline preserva os recursos locais e o cache de vulnerabilidades, mas não atualiza dados NVD/CISA.
+- Os binários v1.0.0 permanecem um **UNSIGNED BUILD**, sem identidade autenticada de editor ou timestamp confiável.
 
 **v1.0.0** é a versão pública atual para Windows.

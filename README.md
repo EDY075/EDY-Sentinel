@@ -184,14 +184,21 @@ pnpm tauri dev
 
 Verification and release commands are documented in the [development guide](docs/development/setup.md).
 
-## Known limitations
+## v1.0 scope and boundaries
 
-- Version 1.0.0 packages are unsigned and have no authenticated publisher identity or trusted timestamp.
-- Product identity resolution is intentionally conservative; ambiguous software is left unresolved.
-- Offline use preserves local telemetry and cached vulnerability evidence, but cannot refresh NVD/CISA data.
-- The six v1 rules are explainable observability rules, not malware classification or full EDR.
-- The Security Score describes observed posture under current coverage; it is not a security guarantee.
-- Automated remediation, process or network blocking, reputation services, and advanced scanning are outside v1 scope.
+EDY Sentinel v1.0 is a functional **Windows Endpoint Intelligence** and **Security Posture
+Monitoring** product for local endpoint observation and analysis. Telemetry, processes, network,
+services, software inventory, behavioral baseline, Security Events, the Detection Engine,
+Vulnerability Intelligence, and Security Score are real, operational capabilities.
+
+Within that defined monitoring and analysis scope:
+
+- EDY Sentinel complements endpoint security operations; it is not intended to replace antivirus or a full EDR platform.
+- Automated remediation, process or network blocking, reputation services, and complete EDR protection are outside the v1.0 scope.
+- The Security Score represents observable posture under current coverage, not a guarantee of security.
+- Software whose identity cannot be supported by sufficient evidence remains unresolved by conservative design.
+- Offline operation preserves local capabilities and cached vulnerability evidence, but cannot refresh NVD/CISA data.
+- Version 1.0.0 binaries remain an **UNSIGNED BUILD**, without authenticated publisher identity or a trusted timestamp.
 
 ## Project status
 
