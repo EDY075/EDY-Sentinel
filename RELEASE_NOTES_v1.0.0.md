@@ -42,9 +42,10 @@ installation.
 
 ## Code signing
 
-The version 1.0.0 binaries do not have an Authenticode signature. The production signing pipeline
-is prepared and remains fail-closed for signed releases, but legitimate publisher authentication
-depends on an appropriate certificate and trusted timestamp that are not currently available.
+The Windows binaries included in this v1.0.0 release are currently unsigned. The Authenticode
+signing pipeline is prepared, but a trusted public code-signing certificate has not yet been
+applied. Signed releases remain fail-closed until publisher identity and trusted timestamp
+verification succeed.
 
 ## Local data and offline behavior
 
