@@ -33,7 +33,9 @@ export function EmptyState({ title, description }: { title: string; description:
 export function Dialog({ open, title, children, onClose }: { open: boolean; title: string; children: ReactNode; onClose: () => void }) {
   const { t } = useTranslation('common')
   const dialogRef = useRef<HTMLElement>(null)
+  const onCloseRef = useRef(onClose)
   const titleId = useId()
+  useEffect(() => { onCloseRef.current = onClose }, [onClose])
   useEffect(() => {
     if (!open) return
     const previouslyFocused = document.activeElement as HTMLElement | null
@@ -44,7 +46,7 @@ export function Dialog({ open, title, children, onClose }: { open: boolean; titl
     const autofocus = dialog?.querySelector<HTMLElement>('[data-initial-focus]')
     ;(autofocus ?? focusable[0] ?? dialog)?.focus()
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
+      if (event.key === 'Escape') onCloseRef.current()
       if (event.key !== 'Tab' || !dialog) return
       if (!focusable.length) return
       const first = focusable[0]
@@ -54,7 +56,7 @@ export function Dialog({ open, title, children, onClose }: { open: boolean; titl
     }
     document.addEventListener('keydown', onKeyDown)
     return () => { document.removeEventListener('keydown', onKeyDown); previouslyFocused?.focus() }
-  }, [onClose, open])
+  }, [open])
   if (!open) return null
   return (
     <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>

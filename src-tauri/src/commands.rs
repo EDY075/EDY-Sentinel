@@ -55,8 +55,6 @@ pub fn get_system_locale() -> Result<String, String> {
 pub async fn get_system_overview(
     database: State<'_, Database>,
     baseline: State<'_, BaselineEngine>,
-    detection: State<'_, DetectionEngine>,
-    score: State<'_, ScoreEngine>,
 ) -> Result<SystemOverview, String> {
     let mut overview = tauri::async_runtime::spawn_blocking(collectors::collect_overview)
         .await
@@ -73,14 +71,6 @@ pub async fn get_system_overview(
             message,
         });
     }
-    let coverage = vec![collector_coverage(&overview.collector)];
-    refresh_security_analysis(
-        &database,
-        &detection,
-        &score,
-        coverage,
-        &mut overview.issues,
-    );
     Ok(overview)
 }
 
@@ -243,6 +233,10 @@ pub async fn get_live_telemetry(
                 message,
             });
         }
+        // The live telemetry command is the single owner of the polling-cycle
+        // Detection Engine and Security Score refresh. System collection may
+        // add network-baseline facts concurrently; those are consumed by the
+        // next bounded live cycle instead of running a duplicate analysis.
         let coverage = snapshot.collectors.iter().map(collector_coverage).collect();
         refresh_security_analysis(
             &database,

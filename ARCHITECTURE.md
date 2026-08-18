@@ -243,6 +243,15 @@ Detection and evidence history are currently preserved without automatic deletio
 intentional for explainability; a future downsampling/archival policy must preserve every source
 needed by an active Detection. Score snapshots use 365-day retention.
 
+Vulnerability evaluation history uses schema-v11 retention policy version 1. Each software record
+always retains its latest complete evaluation family, its 100 newest families, one latest-per-UTC-day
+checkpoint through 90 days, and one latest-per-UTC-month checkpoint through 730 days. A retained
+family keeps its identity evidence, CPE candidates, matches, provenance and source/engine versions
+together. Only obsolete reconstructible families outside those sets are deleted, oldest first, in
+batches of at most 250. The persisted maintenance state makes the policy run at startup and then no
+more than once per 24 hours when the existing six-hour maintenance boundary is reached. It never
+runs on every telemetry or vulnerability refresh and never runs `VACUUM` in the live path.
+
 ## Live cadence and pause semantics
 
 The React `TelemetryProvider` is the only UI hydration loop and prevents overlapping
@@ -250,6 +259,12 @@ requests. The managed Rust engine samples processes on each 2.5-second hydration
 connections no more often than every four seconds, and services no more often than
 every 15 seconds. Overview/system collection runs every 15 seconds. Expensive static
 executable metadata is cached by path and last-write time.
+
+`get_live_telemetry` is the single owner of the polling-cycle Detection Engine and Security Score
+analysis. The concurrent 15-second system request collects and persists system/network facts but
+does not start a second analysis transaction. Network-baseline facts committed after a concurrent
+live analysis are consumed by the next bounded 2.5-second live cycle; collector frequencies remain
+unchanged.
 
 Pause freezes automatic collection at the latest snapshot while keeping the UI,
 filters, sorting, and drawers navigable. Resume performs the next normal collection.

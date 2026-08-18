@@ -13,6 +13,10 @@ All notable changes follow Keep a Changelog principles.
   zero, KEV context, and navigation to existing Inventory/CVE evidence
 - Migration 0010 and lifecycle tests for version changes, removals, Not affected, stale
   fingerprints, duplicates, caps, queue recovery, and v1/v2 history
+- Migration 0011 with versioned, bounded vulnerability-history retention state and incremental
+  preservation tests
+- Production Authenticode build/verification infrastructure and explicit unsigned-development
+  trust marker without a repository-held certificate or private key
 
 ### Changed
 
@@ -28,6 +32,12 @@ All notable changes follow Keep a Changelog principles.
   terminates exceptionally
 - CVE Detail and new NVD ingestion now expose only credential-free HTTPS advisory references;
   legacy plaintext HTTP references remain stored evidence but are not clickable
+- The 15-second joint polling cycle no longer starts duplicate Detection Engine and Security Score
+  analysis; live telemetry is the single analysis owner and collector cadences are unchanged
+- Obsolete vulnerability evaluation families are pruned in bounded daily maintenance batches while
+  current Confirmed evidence and audit checkpoints remain intact
+- Dialog focus is no longer reset by telemetry-driven parent rerenders, so command-palette keyboard
+  input and selection remain stable while live data refreshes
 
 ### Security
 
@@ -42,8 +52,9 @@ All notable changes follow Keep a Changelog principles.
   impacts 6/4/4; 31 Confirmed, 1 KEV Confirmed, and 1 Possible with impact zero
 - Runtime queue lifecycle: 81 pending → 0, global score Limited → Good, while unresolved identity
   coverage remains independently Limited
-- pt-BR, English, Sentinel Blue, Cyber Green, Terminal, Spectrum, and external screenshot evidence
-  validated without changing Matching Engine v1, Detection Engine, or the six rules
+- Automated pt-BR/English catalogs and runtime contracts passed. Real release screenshots validated
+  English at 1440x900 in Cyber Green; the remaining locale/theme/resolution matrix is an explicit
+  manual release-environment acceptance item, not claimed as completed visual evidence
 
 ## [0.4.0] — 2026-08-16
 

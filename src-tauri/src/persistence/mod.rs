@@ -43,7 +43,19 @@ const MIGRATIONS: &[(i64, &str)] = &[
         10,
         include_str!("../../migrations/0010_vulnerability_score_v2.sql"),
     ),
+    (
+        11,
+        include_str!("../../migrations/0011_vulnerability_history_retention.sql"),
+    ),
 ];
+
+const VULNERABILITY_RETENTION_POLICY_KEY: &str = "vulnerability-evaluation-history";
+const VULNERABILITY_RETENTION_POLICY_VERSION: i64 = 1;
+const VULNERABILITY_RETENTION_INTERVAL_HOURS: i64 = 24;
+const VULNERABILITY_RETENTION_RECENT_PER_SOFTWARE: i64 = 100;
+const VULNERABILITY_RETENTION_DAILY_DAYS: i64 = 90;
+const VULNERABILITY_RETENTION_MONTHLY_DAYS: i64 = 730;
+const VULNERABILITY_RETENTION_BATCH_SIZE: i64 = 250;
 
 #[derive(Clone)]
 pub struct Database {
@@ -72,6 +84,7 @@ impl Database {
         let mut connection = Connection::open(path)?;
         Self::configure(&connection)?;
         Self::migrate(&mut connection)?;
+        Self::run_vulnerability_history_retention(&mut connection, Utc::now(), false)?;
         Ok(Self {
             connection: Arc::new(Mutex::new(connection)),
             cadence: Arc::new(Mutex::new(PersistenceCadence::default())),
@@ -119,6 +132,17 @@ impl Database {
             }
         }
         Ok(())
+    }
+
+    fn run_vulnerability_history_retention(
+        connection: &mut Connection,
+        now: chrono::DateTime<Utc>,
+        force: bool,
+    ) -> Result<usize, rusqlite::Error> {
+        let transaction = connection.transaction()?;
+        let deleted = enforce_vulnerability_history_retention(&transaction, now, force)?;
+        transaction.commit()?;
+        Ok(deleted)
     }
 
     pub fn save_snapshot(&self, overview: &SystemOverview) -> Result<(), String> {
@@ -407,6 +431,8 @@ impl Database {
                     [&observation_cutoff],
                 )
                 .map_err(|_| "Unable to enforce snapshot retention")?;
+            enforce_vulnerability_history_retention(&transaction, Utc::now(), false)
+                .map_err(|_| "Unable to enforce vulnerability history retention")?;
         }
         transaction
             .commit()
@@ -610,6 +636,129 @@ impl Database {
     }
 }
 
+fn enforce_vulnerability_history_retention(
+    transaction: &Transaction<'_>,
+    now: chrono::DateTime<Utc>,
+    force: bool,
+) -> Result<usize, rusqlite::Error> {
+    let (stored_policy_version, last_run_at): (i64, Option<String>) = transaction.query_row(
+        "SELECT policy_version, last_run_at
+         FROM vulnerability_history_retention_state
+         WHERE policy_key = ?1",
+        [VULNERABILITY_RETENTION_POLICY_KEY],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?;
+    let due = force
+        || stored_policy_version != VULNERABILITY_RETENTION_POLICY_VERSION
+        || last_run_at
+            .as_deref()
+            .and_then(|value| chrono::DateTime::parse_from_rfc3339(value).ok())
+            .map_or(true, |last| {
+                last.with_timezone(&Utc)
+                    <= now - Duration::hours(VULNERABILITY_RETENTION_INTERVAL_HOURS)
+            });
+    if !due {
+        return Ok(0);
+    }
+
+    transaction.execute_batch(
+        "CREATE TEMP TABLE IF NOT EXISTS vulnerability_retention_candidates(
+             evaluation_id TEXT PRIMARY KEY
+         ) WITHOUT ROWID;
+         DELETE FROM vulnerability_retention_candidates;",
+    )?;
+    let now_text = now.to_rfc3339();
+    transaction.execute(
+        "WITH ranked AS (
+             SELECT evaluation_id, software_id, completed_at,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY software_id
+                        ORDER BY completed_at DESC, evaluation_id DESC
+                    ) AS recent_rank,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY software_id, date(completed_at)
+                        ORDER BY completed_at DESC, evaluation_id DESC
+                    ) AS daily_rank,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY software_id, strftime('%Y-%m', completed_at)
+                        ORDER BY completed_at DESC, evaluation_id DESC
+                    ) AS monthly_rank,
+                    CAST(julianday(?1) - julianday(completed_at) AS INTEGER) AS age_days
+             FROM software_vulnerability_evaluations
+         )
+         INSERT OR IGNORE INTO vulnerability_retention_candidates(evaluation_id)
+         SELECT evaluation_id
+         FROM ranked
+         WHERE age_days >= 0
+           AND recent_rank > ?2
+           AND NOT (age_days <= ?3 AND daily_rank = 1)
+           AND NOT (age_days <= ?4 AND monthly_rank = 1)
+         ORDER BY completed_at, evaluation_id
+         LIMIT ?5",
+        params![
+            now_text,
+            VULNERABILITY_RETENTION_RECENT_PER_SOFTWARE,
+            VULNERABILITY_RETENTION_DAILY_DAYS,
+            VULNERABILITY_RETENTION_MONTHLY_DAYS,
+            VULNERABILITY_RETENTION_BATCH_SIZE,
+        ],
+    )?;
+
+    transaction.execute(
+        "DELETE FROM vulnerability_match_evidence
+         WHERE match_id IN (
+             SELECT match_id FROM vulnerability_matches
+             WHERE evaluation_id IN (
+                 SELECT evaluation_id FROM vulnerability_retention_candidates
+             )
+         )",
+        [],
+    )?;
+    transaction.execute(
+        "DELETE FROM vulnerability_matches
+         WHERE evaluation_id IN (
+             SELECT evaluation_id FROM vulnerability_retention_candidates
+         )",
+        [],
+    )?;
+    transaction.execute(
+        "DELETE FROM software_cpe_candidates
+         WHERE evaluation_id IN (
+             SELECT evaluation_id FROM vulnerability_retention_candidates
+         )",
+        [],
+    )?;
+    transaction.execute(
+        "DELETE FROM software_identity_evaluations
+         WHERE evaluation_id IN (
+             SELECT evaluation_id FROM vulnerability_retention_candidates
+         )",
+        [],
+    )?;
+    let deleted = transaction.execute(
+        "DELETE FROM software_vulnerability_evaluations
+         WHERE evaluation_id IN (
+             SELECT evaluation_id FROM vulnerability_retention_candidates
+         )",
+        [],
+    )?;
+    transaction.execute(
+        "UPDATE vulnerability_history_retention_state
+         SET policy_version = ?2,
+             last_run_at = ?3,
+             last_deleted_evaluations = ?4,
+             total_deleted_evaluations = total_deleted_evaluations + ?4
+         WHERE policy_key = ?1",
+        params![
+            VULNERABILITY_RETENTION_POLICY_KEY,
+            VULNERABILITY_RETENTION_POLICY_VERSION,
+            now_text,
+            deleted as i64,
+        ],
+    )?;
+    Ok(deleted)
+}
+
 #[derive(Debug)]
 struct StoredTracking {
     first_seen: String,
@@ -665,11 +814,15 @@ fn apply_tracking(
 
 #[cfg(test)]
 mod tests {
-    use super::Database;
+    use super::{
+        enforce_vulnerability_history_retention, Database, VULNERABILITY_RETENTION_BATCH_SIZE,
+    };
     use crate::models::{
         CollectorHealth, CollectorStatus, ConnectionRecord, LiveTelemetrySnapshot, ProcessRecord,
         ServiceRecord, TelemetryEvent,
     };
+    use chrono::{Duration, Utc};
+    use rusqlite::params;
 
     fn snapshot(active: bool, with_event: bool) -> LiveTelemetrySnapshot {
         LiveTelemetrySnapshot {
@@ -766,7 +919,7 @@ mod tests {
     #[test]
     fn migrations_are_versioned_and_preferences_round_trip() {
         let database = Database::in_memory().expect("database should initialize");
-        assert_eq!(database.status().expect("status").0, 10);
+        assert_eq!(database.status().expect("status").0, 11);
         database.set_theme("terminal").expect("theme should save");
         assert_eq!(database.get_theme().expect("theme should load"), "terminal");
         assert_eq!(database.get_language().expect("language query"), None);
@@ -885,7 +1038,16 @@ mod tests {
                 |row| row.get(0),
             )
             .expect("vulnerability score v2 columns");
-        assert_eq!(version, 10);
+        let retention_tables: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master
+                 WHERE type = 'table'
+                   AND name = 'vulnerability_history_retention_state'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("vulnerability retention state table");
+        assert_eq!(version, 11);
         assert_eq!(live_tables, 4);
         assert_eq!(baseline_tables, 7);
         assert_eq!(event_columns, 11);
@@ -894,6 +1056,187 @@ mod tests {
         assert_eq!(detection_tables, 7);
         assert_eq!(sprint_three_tables, 7);
         assert_eq!(vulnerability_score_columns, 4);
+        assert_eq!(retention_tables, 1);
+    }
+
+    #[test]
+    fn vulnerability_history_retention_is_bounded_and_preserves_current_evidence() {
+        let database = Database::in_memory().expect("database should initialize");
+        let now = chrono::DateTime::parse_from_rfc3339("2026-08-17T12:00:00Z")
+            .expect("fixed time")
+            .with_timezone(&Utc);
+        let mut connection = database.connection.lock().expect("connection lock");
+        connection
+            .execute(
+                "INSERT INTO software_inventory_snapshots(
+                    snapshot_id, collected_at, duration_ms, raw_entry_count,
+                    software_count, source_count
+                 ) VALUES ('snapshot', ?1, 1, 1, 1, 1)",
+                [now.to_rfc3339()],
+            )
+            .expect("inventory snapshot");
+        connection
+            .execute(
+                "INSERT INTO installed_software(
+                    software_id, display_name, display_version, architecture,
+                    install_scope, sources_json, registry_identities_json,
+                    normalized_vendor, normalized_product, normalized_version,
+                    identity_status, first_seen_at, last_seen_at, last_snapshot_id
+                 ) VALUES (
+                    'software', 'Product', '1.0', 'x64', 'machine', '[]', '[]',
+                    'vendor', 'product', '1.0', 'resolved', ?1, ?1, 'snapshot'
+                 )",
+                [now.to_rfc3339()],
+            )
+            .expect("installed software");
+        for index in 0..105 {
+            let completed_at = (now - Duration::days(800 + index)).to_rfc3339();
+            connection
+                .execute(
+                    "INSERT INTO software_vulnerability_evaluations(
+                        evaluation_id, software_id, software_fingerprint,
+                        matching_engine_version, nvd_source_version, kev_source_version,
+                        outcome, candidate_count, confirmed_count, possible_count,
+                        unresolved_count, not_affected_count, started_at, completed_at,
+                        duration_ms
+                     ) VALUES (
+                        ?1, 'software', ?2, 1, 'nvd-v1', 'kev-v1', ?3, 1, ?4,
+                        0, 0, 0, ?5, ?5, 1
+                     )",
+                    params![
+                        format!("evaluation-{index:03}"),
+                        format!("fingerprint-{index:03}"),
+                        if index == 0 {
+                            "confirmed"
+                        } else {
+                            "no_confirmed"
+                        },
+                        if index == 0 { 1 } else { 0 },
+                        completed_at,
+                    ],
+                )
+                .expect("evaluation history");
+        }
+        connection
+            .execute(
+                "INSERT INTO nvd_vulnerabilities(
+                    cve_id, published_at, last_modified_at, description,
+                    weaknesses_json, references_json, applicability_json,
+                    repository_updated_at
+                 ) VALUES ('CVE-2026-1', ?1, ?1, 'Fixture', '[]', '[]', '{}', ?1)",
+                [now.to_rfc3339()],
+            )
+            .expect("CVE fixture");
+        connection
+            .execute(
+                "INSERT INTO vulnerability_matches(
+                    match_id, evaluation_id, software_id, cve_id, match_state,
+                    confidence, installed_version, affected_range, comparison_result,
+                    matching_engine_version, nvd_source_version, kev_source_version,
+                    last_evaluated_at
+                 ) VALUES (
+                    'current-match', 'evaluation-000', 'software', 'CVE-2026-1',
+                    'confirmed', 'high', '1.0', '<= 2.0', 'within_range', 1,
+                    'nvd-v1', 'kev-v1', ?1
+                 )",
+                [now.to_rfc3339()],
+            )
+            .expect("current confirmed match");
+        connection
+            .execute(
+                "INSERT INTO vulnerability_match_evidence(
+                    match_id, evidence_type, source, observed_at, evidence_json
+                 ) VALUES ('current-match', 'version-range', 'nvd', ?1, '{}')",
+                [now.to_rfc3339()],
+            )
+            .expect("current match evidence");
+
+        let transaction = connection.transaction().expect("retention transaction");
+        let deleted = enforce_vulnerability_history_retention(&transaction, now, true)
+            .expect("retention run");
+        transaction.commit().expect("retention commit");
+
+        assert_eq!(deleted, 5);
+        assert_eq!(
+            connection
+                .query_row(
+                    "SELECT COUNT(*) FROM software_vulnerability_evaluations",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .expect("evaluation count"),
+            100
+        );
+        assert_eq!(
+            connection
+                .query_row(
+                    "SELECT COUNT(*) FROM vulnerability_match_evidence
+                     WHERE match_id = 'current-match'",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .expect("current evidence count"),
+            1
+        );
+        let transaction = connection.transaction().expect("cadence transaction");
+        assert_eq!(
+            enforce_vulnerability_history_retention(&transaction, now, false)
+                .expect("cadence check"),
+            0
+        );
+        transaction.commit().expect("cadence commit");
+
+        for index in 105..505 {
+            let completed_at = (now - Duration::days(1_000 + index)).to_rfc3339();
+            connection
+                .execute(
+                    "INSERT INTO software_vulnerability_evaluations(
+                        evaluation_id, software_id, software_fingerprint,
+                        matching_engine_version, outcome, candidate_count,
+                        confirmed_count, possible_count, unresolved_count,
+                        not_affected_count, started_at, completed_at, duration_ms
+                     ) VALUES (
+                        ?1, 'software', ?2, 1, 'no_confirmed', 0, 0, 0, 0, 0,
+                        ?3, ?3, 1
+                     )",
+                    params![
+                        format!("evaluation-{index:03}"),
+                        format!("fingerprint-{index:03}"),
+                        completed_at,
+                    ],
+                )
+                .expect("retention backlog");
+        }
+        let transaction = connection.transaction().expect("bounded transaction");
+        assert_eq!(
+            enforce_vulnerability_history_retention(&transaction, now, true)
+                .expect("bounded retention run"),
+            VULNERABILITY_RETENTION_BATCH_SIZE as usize
+        );
+        transaction.commit().expect("bounded retention commit");
+        assert_eq!(
+            connection
+                .query_row(
+                    "SELECT last_deleted_evaluations, total_deleted_evaluations
+                     FROM vulnerability_history_retention_state
+                     WHERE policy_key = 'vulnerability-evaluation-history'",
+                    [],
+                    |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
+                )
+                .expect("retention counters"),
+            (VULNERABILITY_RETENTION_BATCH_SIZE, 255)
+        );
+        assert_eq!(
+            connection
+                .query_row(
+                    "SELECT COUNT(*) FROM vulnerability_match_evidence
+                     WHERE match_id = 'current-match'",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .expect("current evidence after backlog"),
+            1
+        );
     }
 
     #[test]

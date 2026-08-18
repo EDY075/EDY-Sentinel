@@ -80,6 +80,30 @@
 - Provider lifecycle/status in Settings and offline reuse after successful synchronization
 - No software-to-CVE match, vulnerability Detection, or Security Score penalty
 
+## Sprint 3 Parts 2–3 — Conservative matching and Security Score v2 (complete)
+
+- Versioned product identity/CPE resolution and conservative NVD range matching
+- Auditable Confirmed/Possible/Unresolved/Not affected evidence with KEV as post-match priority
+- Security Score formula v2 with bounded product and vulnerability caps; Possible impact remains zero
+- Bilingual Inventory, Product Identity, CVE Detail and score explanations
+
+## Sprint 4A — Adversarial product hardening (complete)
+
+- Startup/cache failure isolation, provider-worker recovery and safe external CVE references
+- Real desktop keyboard/focus QA and command-palette lifecycle fixes
+- Full architecture, database, dependency, artifact and performance audit
+
+## Sprint 4B — Release blockers and final hardening (technical work complete)
+
+- Versioned incremental vulnerability-history retention with active evidence protection
+- Single-owner security analysis in the joint polling cycle
+- Authenticode/timestamp pipeline prepared for a legitimate production credential
+- Clean-install/uninstall procedure, final desktop QA and signed-public-release gate
+
+The codebase is technically ready for the v1 review checkpoint. Public distribution remains
+blocked until a legitimate Authenticode identity signs and timestamps EXE, MSI and NSIS, and the
+manual clean-install plus remaining desktop visual matrix are completed in the release environment.
+
 `EDY-PROC-003` remains deferred: current executable identity is not stable enough to infer
 tampering from metadata changes without bounded content identity. High/Critical rules,
 production calibration, external intelligence, notifications native to Windows, automated

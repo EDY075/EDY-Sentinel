@@ -122,10 +122,25 @@ Secrets must be stored in Windows Credential Manager. SQLite may contain only a 
 
 ## Release artifact trust
 
-The Sprint 4A technical artifacts are reproducible EXE, MSI, and NSIS outputs, but they are not
-Authenticode-signed. Signing and timestamp verification are mandatory release gates before public
-distribution. The MSI is per-machine and may request installation elevation; normal Sentinel
-runtime collection continues as the current standard user and does not request administrator rights.
+The technical artifacts are reproducible EXE, MSI, and NSIS outputs, but local builds without a
+legitimate certificate are explicitly `UNSIGNED DEVELOPMENT BUILD` outputs. `CODE_SIGNING.md` and
+the release wrapper define fail-closed Windows Certificate Store injection, SHA-256 signing,
+timestamping, and post-build verification for all three artifacts. Signing and timestamp validation
+remain mandatory public-release gates. The MSI is per-machine and may request installation
+elevation; normal Sentinel runtime collection continues as the current standard user and does not
+request administrator rights.
+
+Current Tauri installers have no custom uninstall action that removes application data. Uninstall
+removes installed binaries, shortcuts and installer-owned registration. `sentinel.db`, user
+preferences and the reconstructible `vulnerability-cache.db` remain under the user's application
+data directory. Future logs must follow the same preserve-by-default rule. A future installer may
+offer an explicit user-selected data-removal option, but silent deletion of endpoint history or
+settings is prohibited.
+
+Vulnerability retention policy v1 deletes only obsolete complete evaluation families outside the
+documented 100-recent/daily-90/monthly-730 checkpoints. The latest family for every software record
+and all of its currently Confirmed evidence/provenance are always protected. Cleanup is persisted,
+24-hour-cadenced, and capped at 250 evaluation families per transaction.
 
 ## Data classification
 
