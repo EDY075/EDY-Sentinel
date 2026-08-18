@@ -4,9 +4,9 @@ EDY Sentinel is a local-first Windows security observability desktop application
 native endpoint telemetry, a behavioral baseline, factual security events, six explainable
 detection rules, conservative software-to-CVE matching, and an auditable Security Score.
 
-Version `1.0.0-rc.1` is a technical release candidate. Its local EXE, MSI, and NSIS outputs are
-unsigned and are not approved for public distribution until a legitimate Authenticode certificate
-and trusted timestamp pass the release verification gate.
+Version `1.0.0` is the final local release tree prepared for human review. Its EXE, MSI, and NSIS
+outputs remain unsigned local artifacts and are not approved for public distribution until a
+legitimate Authenticode certificate and trusted timestamp pass the release verification gate.
 
 ## What the application does
 
@@ -32,13 +32,15 @@ unresolved.
 - **Security analysis:** factual events, explainable Detections, and the six-rule registry.
 - **Settings:** interface language, installed version/release channel, and provider status.
 
-Real release-candidate screenshots are generated outside Git because they may contain endpoint
-metadata. The evidence inventory and capture procedure are recorded in `SPRINT5A_RC_REPORT.md` and
+## Screenshots and visual evidence
+
+Real desktop screenshots are generated outside Git because they may contain endpoint metadata. The
+current evidence inventory and capture limitations are recorded in `SPRINT5B_FINAL_REPORT.md` and
 `RELEASE_CHECKLIST.md`.
 
 ## Installation status
 
-The RC targets Windows 10/11 x64 with the Microsoft Edge WebView2 Runtime. MSI is intended for a
+Version 1.0.0 targets Windows 10/11 x64 with the Microsoft Edge WebView2 Runtime. MSI is intended for a
 managed Windows installation; NSIS provides the alternative setup executable. Current uninstallers
 remove installer-owned binaries, shortcuts, and registration while preserving the application data
 directory by default.
@@ -76,7 +78,7 @@ pnpm check:rust
 pnpm release:build
 ```
 
-An unsigned RC build prints and records `UNSIGNED RELEASE CANDIDATE`. Setting
+An unsigned final local build prints and records `UNSIGNED BUILD`. Setting
 `EDY_SENTINEL_REQUIRE_SIGNED_RELEASE=1` turns missing or invalid signing inputs into a hard failure.
 
 ## Architecture and security boundaries
@@ -101,7 +103,7 @@ Process command lines are live-only and are not persisted. File contents are not
 stored, and executable content is not continuously hashed.
 
 NVD and CISA synchronization downloads public vulnerability records over HTTPS. It does not upload
-endpoint inventory or personal telemetry. The RC contains no analytics, cloud account, AI module,
+endpoint inventory or personal telemetry. Version 1.0.0 contains no analytics, cloud account, AI module,
 API key, or required external credential.
 
 ## Known limitations
@@ -117,8 +119,10 @@ API key, or required external credential.
 ## Project documents
 
 - `USER_GUIDE.md` — installation, first run, views, offline use, and data preservation.
+- `RELEASE_NOTES_v1.0.0.md` — v1 capabilities, requirements, limitations, and signing status.
 - `RELEASE_CHECKLIST.md` — technical and public-release gates.
 - `DEVELOPMENT.md` — toolchain and contributor workflow.
 - `LOCALIZATION.md` — bilingual presentation contract.
 - `SECURITY.md` — threat boundaries, privacy, and reporting guidance.
 - `ROADMAP.md` and `CHANGELOG.md` — status and version history.
+- `SPRINT5B_FINAL_REPORT.md` — final local preparation evidence and remaining public gates.

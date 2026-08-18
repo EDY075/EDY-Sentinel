@@ -76,7 +76,7 @@ export function SettingsView() {
       <dl className="provider-card">
         <div><dt>{t('settings:about.product')}</dt><dd>{t('common:appName')}</dd></div>
         <div><dt>{t('settings:about.version')}</dt><dd>{appVersion ?? t('common:states.loading')}</dd></div>
-        <div><dt>{t('settings:about.channel')}</dt><dd>{t('settings:about.releaseCandidate')}</dd></div>
+        <div><dt>{t('settings:about.channel')}</dt><dd>{t('settings:about.stable')}</dd></div>
       </dl>
     </section>
     <ProviderSettings />

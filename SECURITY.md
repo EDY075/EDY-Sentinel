@@ -122,17 +122,17 @@ Secrets must be stored in Windows Credential Manager. SQLite may contain only a 
 
 ## Release artifact trust
 
-The technical artifacts are reproducible EXE, MSI, and NSIS outputs, but local builds without a
-legitimate certificate are explicitly `UNSIGNED DEVELOPMENT BUILD` or
-`UNSIGNED RELEASE CANDIDATE` outputs according to their package channel. `CODE_SIGNING.md` and
+The technical artifacts are buildable EXE, MSI, and NSIS outputs, but local builds without a
+legitimate certificate are explicitly `UNSIGNED BUILD`, `UNSIGNED DEVELOPMENT BUILD`, or
+`UNSIGNED RELEASE CANDIDATE` outputs according to their package version/channel. `CODE_SIGNING.md` and
 the release wrapper define fail-closed Windows Certificate Store injection, SHA-256 signing,
 timestamping, and post-build verification for all three artifacts. Signing and timestamp validation
 remain mandatory public-release gates. The MSI is per-machine and may request installation
 elevation; normal Sentinel runtime collection continues as the current standard user and does not
 request administrator rights.
 
-Version `1.0.0-rc.1` is a technical candidate only. Its unsigned artifacts may be used for local
-validation but must not be represented as authenticated publisher output or a public final release.
+Version `1.0.0` is prepared locally for human review. Its unsigned artifacts may be used for local
+validation but must not be represented as authenticated publisher output or a public release.
 
 Uninstall removes installed binaries, shortcuts and installer-owned registration. MSI does not
 remove application data. NSIS preserves data by default and exposes an explicit unchecked

@@ -17,7 +17,9 @@ const packageManagerScript = process.env.npm_execpath
 const packageVersion = JSON.parse(readFileSync(join(repositoryRoot, 'package.json'), 'utf8')).version
 const unsignedLabel = /-rc\./i.test(packageVersion)
   ? 'UNSIGNED RELEASE CANDIDATE'
-  : 'UNSIGNED DEVELOPMENT BUILD'
+  : packageVersion === '1.0.0'
+    ? 'UNSIGNED BUILD'
+    : 'UNSIGNED DEVELOPMENT BUILD'
 
 function run(command, args) {
   const result = spawnSync(command, args, { cwd: repositoryRoot, stdio: 'inherit' })

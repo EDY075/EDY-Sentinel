@@ -23,7 +23,7 @@ export const settings = {
     product: 'Product',
     version: 'Version',
     channel: 'Channel',
-    releaseCandidate: 'Release candidate',
+    stable: 'Stable',
     unavailable: 'Unavailable',
   },
 } as const

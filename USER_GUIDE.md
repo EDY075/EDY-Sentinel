@@ -1,12 +1,12 @@
 # EDY Sentinel v1 user guide
 
-This guide covers technical release candidate `1.0.0-rc.1`. The candidate is unsigned and intended
-for controlled validation, not public distribution.
+This guide covers the final local `1.0.0` build. The build is unsigned and intended for controlled
+review and validation, not public distribution.
 
 ## Install and first launch
 
 Use either the MSI or NSIS setup supplied by the release operator. Windows may warn about an
-unsigned publisher for this RC; that warning is expected and is a blocker for public release, not a
+unsigned publisher for this build; that warning is expected and is a blocker for public release, not a
 reason to bypass organizational policy.
 
 EDY Sentinel runs as the current user. On first launch it creates `sentinel.db` under
@@ -66,7 +66,7 @@ not a guarantee that the endpoint is secure.
 ### Settings
 
 Switch English/Português (Brasil) at runtime, review provider status, and confirm installed product
-version and channel. Theme selection is available from the application shell.
+version and the Stable channel. Theme selection is available from the application shell.
 
 ## Offline use
 

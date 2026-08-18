@@ -2,9 +2,9 @@
 
 ## Decision summary
 
-The v1.0 release-candidate architecture uses application version `1.0.0-rc.1` and SQLite schema 11.
-The MSI maps the prerelease to numeric installer version `1.0.0.1` while retaining a stable upgrade
-code. This packaging mapping does not alter database, Detection, matching, or score versions.
+The final local v1 architecture uses application and installer version `1.0.0` with SQLite schema
+11. The MSI retains the stable v1 product upgrade code. Packaging changes do not alter database,
+Detection, matching, or score versions.
 The Windows installer publisher remains the established identifier-derived `edy` value for NSIS
 upgrade compatibility; `EDY Sentinel contributors` remains source authorship and executable
 copyright, not a claimed incorporated company or signing identity.
@@ -127,7 +127,7 @@ Collectors do not know about React. The persistence layer does not accept SQL fr
 
 ## Persistence
 
-SQLite opens from Tauri's `app_data_dir`. Startup enables foreign keys, WAL, and a busy timeout, then applies each migration transactionally. The authoritative `sentinel.db` uses `schema_migrations`; its current schema version is 10. The rebuildable `vulnerability-cache.db` has an independent checksummed migration ledger and cache schema version 1.
+SQLite opens from Tauri's `app_data_dir`. Startup enables foreign keys, WAL, and a busy timeout, then applies each migration transactionally. The authoritative `sentinel.db` uses `schema_migrations`; its current schema version is 11. The rebuildable `vulnerability-cache.db` has an independent checksummed migration ledger and cache schema version 1.
 
 Tables prepared in Sprint 0: `system_snapshots`, `network_snapshots`, `devices`, `alerts`, `security_events`, `settings`, and `integrations`. Integration secrets are not stored in the database; only a future `secret_ref` may be stored.
 

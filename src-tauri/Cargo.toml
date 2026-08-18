@@ -1,6 +1,6 @@
 [package]
 name = "edy-sentinel"
-version = "1.0.0-rc.1"
+version = "1.0.0"
 description = "Local-first Windows security observability desktop"
 authors = ["EDY Sentinel contributors"]
 license = "MIT"

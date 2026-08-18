@@ -69,7 +69,7 @@ and a timestamp certificate for every artifact. A failure exits non-zero and blo
 The wrapper writes `BUILD-TRUST.txt` beside the generated bundles; this file is build output
 and remains ignored by Git.
 
-## Unsigned development and release-candidate builds
+## Unsigned local, development, and release-candidate builds
 
 Local development must remain buildable without any signing credential:
 
@@ -82,11 +82,15 @@ package version. A prerelease matching `-rc.` prints and records:
 
 `UNSIGNED RELEASE CANDIDATE`
 
-Other local versions print and record:
+Final local version `1.0.0` prints and records:
+
+`UNSIGNED BUILD`
+
+Other development versions print and record:
 
 `UNSIGNED DEVELOPMENT BUILD`
 
-Such artifacts may be used for local QA but must not be published as a public signed release.
+Such artifacts may be used for local QA or human review but must not be published as a public signed release.
 If `EDY_SENTINEL_REQUIRE_SIGNED_RELEASE=1` is set, missing thumbprint or timestamp input fails
 before compilation. The wrapper never generates a certificate, never downgrades to a
 self-signed identity, and never claims that an unsigned artifact is signed.

@@ -6,6 +6,41 @@ All notable changes follow Keep a Changelog principles.
 
 No public release has been published.
 
+## [1.0.0] — 2026-08-17 (final local preparation)
+
+### Added
+
+- Real Windows system, process, network/connection, service, route, adapter, DNS, and installed-
+  software collectors with explicit partial/restricted states
+- Versioned behavioral baseline, factual Security Events, six explainable Detection rules, evidence,
+  deduplication, reopen behavior, workflow history, and Security Score formula v2
+- Conservative Product Identity/CPE resolution, NVD applicability matching, CISA KEV enrichment,
+  offline evidence, and isolated reconstructible vulnerability cache
+- English and Português (Brasil), four semantic-token themes, keyboard/focus contracts, responsive
+  layouts, user guide, release notes, and final local validation report
+
+### Changed
+
+- Promoted npm, Cargo, Tauri, Settings, MSI, NSIS, executable, and documentation metadata from
+  `1.0.0-rc.1` to final local version `1.0.0`
+- Final unsigned local output is marked `UNSIGNED BUILD`; authenticated public distribution remains
+  fail-closed until legitimate Authenticode signing and trusted timestamp verification succeed
+
+### Security
+
+- Preserved local-first storage, typed Tauri IPC, standard-user runtime, HTTPS-only NVD/CISA
+  providers, no persisted process command lines or file contents, and no product analytics/cloud
+  telemetry
+- Preserved 31 Confirmed CVEs, 1 Possible at impact zero, 1 Confirmed KEV, score 86 with Detection
+  contribution 0 and Vulnerability contribution 14, formula version 2, and six enabled v1 rules
+
+### Validation
+
+- Final frontend, Rust, dependency, database, installer, performance, secret, artifact, localization,
+  theme, and Authenticode fail-closed gates are recorded in `SPRINT5B_FINAL_REPORT.md`
+- EXE, MSI, and NSIS are local unsigned review artifacts; no tag, push, public installer, or release
+  was created
+
 ## [1.0.0-rc.1] — 2026-08-17 (technical release candidate)
 
 ### Added

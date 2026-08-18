@@ -116,22 +116,43 @@ The technical RC is ready for final-release preparation. Public release acceptan
 legitimate signature/timestamp plus the disposable-profile first-run and remaining desktop matrix
 that cannot be isolated safely on the development account.
 
+## Sprint 5B — v1.0 final local preparation (complete)
+
+- Promote application, Cargo, Tauri, Settings, MSI, and NSIS metadata to `1.0.0`
+- Preserve Detection Engine v1, Security Score formula v2, vulnerability evidence, localization,
+  themes, privacy boundaries, installer data-preservation policy, and the stable MSI upgrade code
+- Produce final local unsigned artifacts, release notes, final report, and complete quality evidence
+- Leave signing, disposable-profile/offline acceptance, final visual matrix, tag, push, and public
+  release to the authorized release environment and human review
+
+Version 1.0 is technically complete in the local source tree. Public distribution remains blocked
+until legitimate Authenticode signing/timestamping and the remaining manual acceptance evidence are
+completed.
+
 `EDY-PROC-003` remains deferred: current executable identity is not stable enough to infer
 tampering from metadata changes without bounded content identity. High/Critical rules,
 production calibration, external intelligence, notifications native to Windows, automated
 response, and long-term detection archival/downsampling remain future work.
 
-## Later increments
+## v1.1
 
 1. Production calibration and broader legitimate-scenario coverage for the six-rule registry
-2. Evidence-based software-to-CVE matching using product identity, CPE, and version ranges
-3. Conservative device discovery
-4. Reports and opt-in integrations
-5. Carefully authorized response actions, each behind a separate security boundary
+2. Consolidated release-environment desktop acceptance automation
+3. Dependency lifecycle upgrades and performance observability
 
-## Explicit non-goals through Sprint 3 Part 1
+## v1.2
+
+1. Conservative device discovery
+2. Reports and opt-in integrations
+
+## Backlog
+
+1. Carefully authorized response actions, each behind a separate security boundary
+2. Stable bounded executable content identity for a future `EDY-PROC-003`
+3. Detection history archival/downsampling that preserves active evidence
+
+## Explicit v1 non-goals
 
 VirusTotal, AbuseIPDB, HIBP, urlscan, geolocation, reputation, advanced network scanning,
-software-to-CVE matching, AI/ML classification, process/network blocking,
-firewall management, service control, command-line persistence, and continuous executable
-content hashing are not started.
+AI/ML classification, process/network blocking, firewall management, service control,
+command-line persistence, and continuous executable content hashing are not part of v1.
