@@ -176,7 +176,7 @@ public release hashes.
 
 README, CHANGELOG, ROADMAP, SECURITY, ARCHITECTURE, LOCALIZATION, Detection Rules, Security Score,
 Vulnerability Matching, Code Signing, User Guide, and Release Checklist were reviewed. Architecture
-now correctly reports primary schema 11. `RELEASE_NOTES_v1.0.0.md` and this final report were added.
+now correctly reports primary schema 11. [`../releases/v1.0.0.md`](../releases/v1.0.0.md) and this final report were added.
 
 ## Known limitations and final status
 

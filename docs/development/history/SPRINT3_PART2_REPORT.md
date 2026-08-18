@@ -38,7 +38,7 @@ All access remains in Rust through narrow typed Tauri commands. React is present
 
 ## Matching policy
 
-The detailed policy is documented in `VULNERABILITY_MATCHING.md`.
+The detailed policy is documented in [`../../technical/vulnerability-matching.md`](../../technical/vulnerability-matching.md).
 
 - No CVE description matching.
 - No `contains`-style confirmation.

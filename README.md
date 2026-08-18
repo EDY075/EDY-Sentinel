@@ -1,142 +1,199 @@
+<p align="center">
+  <img src="docs/assets/edy-sentinel-banner.png" alt="EDY Sentinel — Windows Endpoint Intelligence" width="100%">
+</p>
+
+<p align="center">
+  <a href="README.md">English</a> ·
+  <a href="docs/user/README.pt-BR.md">Português (Brasil)</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/EDY075/EDY-Sentinel/releases/tag/v1.0.0"><img alt="Version 1.0.0" src="https://img.shields.io/badge/version-1.0.0-4f9cff"></a>
+  <img alt="Windows 10 and 11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078d4?logo=windows11">
+  <img alt="Rust" src="https://img.shields.io/badge/Rust-native%20core-000000?logo=rust">
+  <img alt="Tauri 2" src="https://img.shields.io/badge/Tauri-2-24c8db?logo=tauri">
+  <img alt="React and TypeScript" src="https://img.shields.io/badge/React%20%2B%20TypeScript-19%20%7C%206-3178c6?logo=react">
+  <a href="https://github.com/EDY075/EDY-Sentinel/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/EDY075/EDY-Sentinel?label=release"></a>
+</p>
+
 # EDY Sentinel
 
-EDY Sentinel is a local-first Windows endpoint intelligence desktop application. Its compact
-desktop shell centers the observed device, local posture, software identity, processes,
-connections, vulnerabilities, and explainable risk. It combines native endpoint telemetry, a
-behavioral baseline, factual security events, six explainable detection rules, conservative
-software-to-CVE matching, and an auditable Security Score.
+EDY Sentinel is a local-first Windows endpoint intelligence application. It brings real system
+telemetry, behavioral context, explainable detections, software vulnerability intelligence, and
+an auditable Security Score into one focused desktop workspace.
 
-Version `1.0.0` is the final release tree. Its EXE, MSI, and NSIS outputs are explicitly classified
-as `UNSIGNED BUILD`: they are not authenticated publisher artifacts. Any distribution of these
-files must preserve that visible disclosure; a future signed release remains subject to the
-fail-closed Authenticode and trusted-timestamp verification gate.
+<p align="center">
+  <a href="https://github.com/EDY075/EDY-Sentinel/releases/latest"><strong>Download EDY Sentinel for Windows →</strong></a>
+</p>
 
-## What the application does
+> **Recommended:** [EDY-Sentinel-1.0.0-Setup-x64.exe](https://github.com/EDY075/EDY-Sentinel/releases/download/v1.0.0/EDY-Sentinel-1.0.0-Setup-x64.exe)
+> for most users. The current v1.0.0 binaries are an **UNSIGNED BUILD**; Windows may display an
+> unknown-publisher warning. Verify the published SHA-256 checksums before running a download.
 
-- Collects real Windows system, process, TCP/UDP connection, service, route, adapter, and DNS facts.
-- Maintains a versioned behavioral baseline with explicit Learning, Ready, Stale, and Error states.
-- Stores factual Security Events separately from rule-produced Detections.
-- Evaluates six immutable v1 detection rules with evidence, exclusions, deduplication, and history.
-- Inventories installed software from native HKLM/HKCU 64-bit and 32-bit Registry views.
-- Synchronizes public NVD and CISA KEV data into a rebuildable local cache on user request.
-- Resolves product identity and version ranges conservatively; ambiguous evidence fails closed.
-- Calculates Security Score formula v2 from active Detections and confirmed vulnerability evidence.
-- Supports English and Português (Brasil), plus Sentinel Blue, Cyber Green, Terminal, and Spectrum.
+## Quick install
 
-No score, detection, process, connection, software identity, CVE relationship, or collector result
-is fabricated. Missing or restricted evidence is shown as unavailable, limited, ambiguous, or
-unresolved.
+1. Download the recommended [Setup EXE](https://github.com/EDY075/EDY-Sentinel/releases/download/v1.0.0/EDY-Sentinel-1.0.0-Setup-x64.exe).
+2. Run the installer and follow the Windows prompts.
+3. Open **EDY Sentinel** from the Start menu.
 
-## Core views
+Alternative packages:
 
-- **Overview:** device identity and state first, followed by the recognizable 0–100 Security Score,
-  collector health, system facts, vulnerability posture, and baseline state.
-- **Processes, Network, and Services:** live read-only endpoint activity with factual detail.
-- **Inventory:** a dense endpoint-inspection table for installed software, normalized Product
-  Identity, vulnerability state, CVE evidence, and KEV context.
-- **Security analysis:** factual events, explainable Detections, and the six-rule registry.
-- **Settings:** interface language, installed version/release channel, and provider status.
+| Package | Best for |
+|---|---|
+| [Setup EXE](https://github.com/EDY075/EDY-Sentinel/releases/download/v1.0.0/EDY-Sentinel-1.0.0-Setup-x64.exe) | Recommended interactive installation |
+| [MSI](https://github.com/EDY075/EDY-Sentinel/releases/download/v1.0.0/EDY-Sentinel-1.0.0-x64.msi) | Managed or conventional Windows installation |
+| [Standalone EXE](https://github.com/EDY075/EDY-Sentinel/releases/download/v1.0.0/EDY-Sentinel-1.0.0-Standalone-x64.exe) | Advanced local QA and troubleshooting; not a portable package |
+| [SHA256SUMS.txt](https://github.com/EDY075/EDY-Sentinel/releases/download/v1.0.0/SHA256SUMS.txt) | Download integrity verification |
 
-Side drawers use a shared **Endpoint Inspector** language for identity, runtime, evidence, network,
-vulnerability, and technical metadata. Sentinel Blue is the primary neutral-blue desktop theme;
-Cyber Green uses green as a functional accent, Terminal is restrained rather than terminal-like,
-and Spectrum provides controlled violet/blue depth without changing semantic state colors.
+Windows 10/11 x64 and the Microsoft Edge WebView2 Runtime are required. Internet access is optional
+for endpoint monitoring and is used only when synchronizing public NVD and CISA KEV data.
 
-## Screenshots and visual evidence
+## See it in action
 
-Real desktop screenshots are generated outside Git because they may contain endpoint metadata. The
-Sprint 5C visual pass validates the real Tauri WebView at 1920x1080, 1600x900, 1440x900, 1366x768,
-and 1280x720; its local screenshots remain outside the repository. Release/publication status is
-tracked separately in `SPRINT5B_FINAL_REPORT.md` and `RELEASE_CHECKLIST.md`.
+<p align="center">
+  <img src="docs/assets/edy-sentinel-demo.gif" alt="EDY Sentinel real application walkthrough" width="960">
+</p>
 
-## Installation status
+The demo uses sanitized captures from the real Tauri desktop application. Redaction labels identify
+where private endpoint data was intentionally hidden; the visible interface and posture results were
+not fabricated.
 
-Version 1.0.0 targets Windows 10/11 x64 with the Microsoft Edge WebView2 Runtime. MSI is intended for a
-managed Windows installation; NSIS provides the alternative setup executable. Current uninstallers
-remove installer-owned binaries, shortcuts, and registration while preserving the application data
-directory by default.
+## Highlights
 
-Unsigned installation packages may be distributed only with explicit release approval and a
-visible `UNSIGNED BUILD` notice. They must not be represented as signed or publisher-authenticated.
-For a signed release, all of the following remain mandatory:
+- **Windows telemetry** — observe hardware, storage, uptime, services, routes, adapters, and DNS.
+- **Processes and connections** — inspect current processes and TCP/UDP endpoints with factual attribution.
+- **Behavioral baseline** — learn a versioned local baseline with explicit Learning, Ready, Stale, and Error states.
+- **Security Events** — retain factual endpoint changes separately from analytical conclusions.
+- **Detection Engine** — evaluate six conservative v1 rules with evidence, exclusions, and history.
+- **Software Inventory** — read installed software from native machine and user Registry views.
+- **Vulnerability Intelligence** — resolve product identity and applicable CVEs without guessing ambiguous matches.
+- **NVD + CISA KEV** — enrich confirmed local evidence using public vulnerability sources.
+- **Security Score v2** — explain Detection and confirmed-vulnerability contributions under measured coverage.
+- **Bilingual interface** — switch between English and Português (Brasil).
+- **Four themes** — choose Sentinel Blue, Cyber Green, Terminal, or Spectrum.
 
-1. EXE, MSI, and NSIS are signed by the legitimate publisher identity;
-2. every signature includes a trusted timestamp;
-3. `scripts/verify-authenticode.ps1` passes for all three immutable artifacts;
-4. clean-install, upgrade, uninstall, and visual acceptance evidence is complete.
+EDY Sentinel reports unavailable, restricted, limited, or unresolved evidence as such. It does not
+invent missing values or turn uncertainty into a threat verdict.
 
-Installer metadata keeps the established publisher value `edy`, derived from the stable application
-identifier, so existing NSIS installations can be upgraded. This is package identity only and is
-not a claim of Authenticode publisher authentication.
+## Real application screenshots
 
-See `USER_GUIDE.md` for operation and `CODE_SIGNING.md` for the signing boundary.
+### Endpoint posture
 
-## Development and verification
+![EDY Sentinel Overview in Sentinel Blue](docs/assets/screenshots/overview-sentinel-blue.png)
 
-Requirements:
+### Software inventory
 
-- Node.js 20+ and pnpm 10+;
-- stable Rust MSVC toolchain;
-- Visual Studio 2022 Build Tools with Desktop development with C++ and a Windows SDK;
-- WebView2 Runtime.
+![EDY Sentinel Software Inventory](docs/assets/screenshots/software-inventory.png)
+
+### Security Score v2
+
+![EDY Sentinel Security Score v2 details](docs/assets/screenshots/security-score-v2.png)
+
+This audited host view shows the formula directly: score 86, zero Detection penalty, a 14-point
+confirmed-vulnerability contribution, 31 Confirmed CVEs, one Possible match with zero impact, and
+one confirmed CISA KEV entry. Results vary with each endpoint and its available coverage.
+
+### Network telemetry
+
+![EDY Sentinel Network telemetry in Cyber Green](docs/assets/screenshots/network-telemetry.png)
+
+### Endpoint Inspector
+
+![EDY Sentinel Endpoint Inspector](docs/assets/screenshots/endpoint-inspector.png)
+
+### Spectrum theme
+
+![EDY Sentinel Overview in Spectrum](docs/assets/screenshots/overview-spectrum.png)
+
+## How it works
+
+```text
+Windows endpoint
+      ↓
+Native collectors
+      ↓
+Behavioral baseline + factual Security Events
+      ↓
+Detection Engine + Vulnerability Intelligence
+      ↓
+Explainable Security Score v2
+```
+
+React owns presentation; Rust owns collection, validation, persistence, detection, scoring, and
+provider integration. The narrow Tauri boundary does not expose arbitrary shell, SQL, Registry,
+WMI, file, or path operations to the interface.
+
+[Explore the full architecture →](docs/technical/architecture.md)
+
+## First run
+
+EDY Sentinel begins collecting local telemetry after launch. The behavioral baseline starts in
+**Learning**, so the Security Score can initially be unavailable or limited until the required
+coverage is ready. Vulnerability Intelligence uses the existing local cache and can synchronize
+public NVD/CISA records on request. These startup states are expected and are shown explicitly.
+
+## Security and privacy
+
+- Endpoint telemetry, inventory, baselines, events, detections, scores, and preferences stay in local SQLite databases.
+- Process command lines are live-only and are not persisted; file contents are not collected.
+- NVD and CISA synchronization downloads public advisory data over HTTPS and does not upload endpoint inventory.
+- Version 1.0.0 has no product analytics, proprietary cloud telemetry, cloud account, or required API key.
+- The application runs as the current user and provides observability; it does not block processes or modify system policy.
+
+Treat the local databases as sensitive endpoint metadata. See the [security policy](SECURITY.md),
+[code-signing boundary](docs/security/code-signing.md), and [vulnerability matching model](docs/technical/vulnerability-matching.md).
+
+## Themes and languages
+
+| Theme | Character |
+|---|---|
+| **Sentinel Blue** | Default neutral-blue security workspace |
+| **Cyber Green** | Green functional accent with dark surfaces |
+| **Terminal** | Restrained high-contrast terminal palette |
+| **Spectrum** | Controlled violet and blue depth |
+
+The full application is available in **English** and **Português (Brasil)**. Theme and language
+preferences are stored locally.
+
+## Documentation
+
+| Start here | Deep dive |
+|---|---|
+| [User Guide](docs/user/user-guide.md) | [Architecture](docs/technical/architecture.md) |
+| [Português (Brasil)](docs/user/README.pt-BR.md) | [Detection Rules](docs/technical/detection-rules.md) |
+| [Documentation index](docs/README.md) | [Security Score](docs/technical/security-score.md) |
+| [Release notes](docs/development/releases/v1.0.0.md) | [Vulnerability Matching](docs/technical/vulnerability-matching.md) |
+| [Security policy](SECURITY.md) | [Localization](docs/technical/localization.md) |
+| [Changelog](CHANGELOG.md) | [Development setup](docs/development/setup.md) |
+
+Historical implementation reports remain available under
+[`docs/development/history`](docs/development/history/) for project transparency, but are not
+required to install or use the product.
+
+## Build from source
+
+Prerequisites are Node.js 20+, pnpm 10+, stable Rust MSVC, Visual Studio Build Tools with a Windows
+SDK, and WebView2.
 
 ```powershell
+git clone https://github.com/EDY075/EDY-Sentinel.git
+cd EDY-Sentinel
 pnpm install
 pnpm tauri dev
 ```
 
-```powershell
-pnpm verify
-pnpm check:rust
-pnpm release:build
-```
-
-An unsigned final local build prints and records `UNSIGNED BUILD`. Setting
-`EDY_SENTINEL_REQUIRE_SIGNED_RELEASE=1` turns missing or invalid signing inputs into a hard failure.
-
-## Architecture and security boundaries
-
-React owns presentation. Rust owns Windows collection, validation, detection, scoring, provider
-integration, and SQLite persistence. Tauri commands are a narrow typed boundary; the UI cannot run
-arbitrary shell, SQL, Registry, WMI, file, or path operations.
-
-The application runs as the current user. It does not block processes, change services, edit the
-firewall, remediate vulnerabilities, or claim complete endpoint protection. Detection confidence
-describes evidence quality, not malware probability, and Security Score is an explainable posture
-indicator rather than a guarantee.
-
-See `ARCHITECTURE.md`, `DETECTION_RULES.md`, `SECURITY_SCORE.md`, and
-`VULNERABILITY_MATCHING.md` for the versioned technical contracts.
-
-## Privacy
-
-System telemetry, inventory, baselines, events, Detections, score history, settings, and software
-matching evidence remain in local SQLite databases under the Windows application-data directory.
-Process command lines are live-only and are not persisted. File contents are not collected or
-stored, and executable content is not continuously hashed.
-
-NVD and CISA synchronization downloads public vulnerability records over HTTPS. It does not upload
-endpoint inventory or personal telemetry. Version 1.0.0 contains no analytics, cloud account, AI module,
-API key, or required external credential.
+Verification and release commands are documented in the [development guide](docs/development/setup.md).
 
 ## Known limitations
 
-- Version 1.0.0 binaries are an `UNSIGNED BUILD`; legitimate Authenticode publisher authentication
-  remains unavailable until an appropriate certificate and trusted timestamp are supplied.
-- Product identity is intentionally narrow; unresolved software is not guessed into a CPE.
-- Offline operation uses already persisted vulnerability evidence/cache; external synchronization
-  naturally remains unavailable without network access.
-- The six v1 rules are conservative and do not constitute malware classification.
-- Active response, reputation services, advanced network scanning, and native Windows notifications
-  are outside v1 scope.
+- Version 1.0.0 packages are unsigned and have no authenticated publisher identity or trusted timestamp.
+- Product identity resolution is intentionally conservative; ambiguous software is left unresolved.
+- Offline use preserves local telemetry and cached vulnerability evidence, but cannot refresh NVD/CISA data.
+- The six v1 rules are explainable observability rules, not malware classification or full EDR.
+- The Security Score describes observed posture under current coverage; it is not a security guarantee.
+- Automated remediation, process or network blocking, reputation services, and advanced scanning are outside v1 scope.
 
-## Project documents
+## Project status
 
-- `USER_GUIDE.md` — installation, first run, views, offline use, and data preservation.
-- `RELEASE_NOTES_v1.0.0.md` — v1 capabilities, requirements, limitations, and signing status.
-- `RELEASE_CHECKLIST.md` — technical and public-release gates.
-- `DEVELOPMENT.md` — toolchain and contributor workflow.
-- `LOCALIZATION.md` — bilingual presentation contract.
-- `SECURITY.md` — threat boundaries, privacy, and reporting guidance.
-- `ROADMAP.md` and `CHANGELOG.md` — status and version history.
-- `SPRINT5B_FINAL_REPORT.md` — final local preparation evidence and remaining public gates.
+**v1.0.0** is the current public Windows release. Source and release artifacts are published as-is;
+review the [release notes](docs/development/releases/v1.0.0.md) and verify checksums before use.

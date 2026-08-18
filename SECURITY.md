@@ -124,15 +124,15 @@ Secrets must be stored in Windows Credential Manager. SQLite may contain only a 
 
 The technical artifacts are buildable EXE, MSI, and NSIS outputs, but local builds without a
 legitimate certificate are explicitly `UNSIGNED BUILD`, `UNSIGNED DEVELOPMENT BUILD`, or
-`UNSIGNED RELEASE CANDIDATE` outputs according to their package version/channel. `CODE_SIGNING.md` and
+`UNSIGNED RELEASE CANDIDATE` outputs according to their package version/channel. [`docs/security/code-signing.md`](docs/security/code-signing.md) and
 the release wrapper define fail-closed Windows Certificate Store injection, SHA-256 signing,
 timestamping, and post-build verification for all three artifacts. Signing and timestamp validation
 remain mandatory public-release gates. The MSI is per-machine and may request installation
 elevation; normal Sentinel runtime collection continues as the current standard user and does not
 request administrator rights.
 
-Version `1.0.0` is prepared locally for human review. Its unsigned artifacts may be used for local
-validation but must not be represented as authenticated publisher output or a public release.
+Version `1.0.0` is publicly available as an explicitly unsigned build. Its artifacts must not be
+represented as authenticated publisher output.
 
 Uninstall removes installed binaries, shortcuts and installer-owned registration. MSI does not
 remove application data. NSIS preserves data by default and exposes an explicit unchecked
@@ -159,4 +159,4 @@ Do not include real credentials, personal data, or sensitive host information in
 
 ## Pre-commit audit
 
-Run the repository secret/path scan described in `DEVELOPMENT.md`, review dependency advisories, and ensure databases, logs, build outputs, and environment files remain ignored.
+Run the repository secret/path scan described in [`docs/development/setup.md`](docs/development/setup.md), review dependency advisories, and ensure databases, logs, build outputs, and environment files remain ignored.

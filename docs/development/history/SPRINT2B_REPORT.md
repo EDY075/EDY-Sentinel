@@ -90,7 +90,7 @@ missing process association cannot independently create elevated severity.
 Precedence is `NET-001 > PROC-002 > PROC-001`, with one executable correlation group for scoring.
 `EDY-PROC-003` was deliberately deferred: path/size/mtime/signer metadata is not stable enough to
 infer tampering without bounded content identity. Full rule rationale, exclusions, false-positive
-context, and remediation are in `DETECTION_RULES.md`.
+context, and remediation are in [`../../technical/detection-rules.md`](../../technical/detection-rules.md).
 
 ## Detection and score policy
 
@@ -105,7 +105,7 @@ Score formula v1 starts at 100. Base penalties are Informational 0, Low 3, Mediu
 Critical 35; confidence factors are Low 0.50, Medium 0.75, High 1.00. Only the largest penalty per
 correlation key is counted, and the total penalty is capped at 100. A failed/incomplete required
 collector or non-Ready baseline produces no numeric score; degraded coverage is marked Limited.
-The complete contract is in `SECURITY_SCORE.md`.
+The complete contract is in [`../../technical/security-score.md`](../../technical/security-score.md).
 
 ## Real Rust interfaces
 

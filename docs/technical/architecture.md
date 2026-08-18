@@ -309,11 +309,11 @@ Empty fake implementations are deliberately absent.
 
 ## ADRs
 
-- `docs/adr/0001-modular-local-first.md`
-- `docs/adr/0002-real-data-partial-results.md`
-- `docs/adr/0003-sqlite-and-secret-boundary.md`
-- `docs/adr/0004-live-telemetry-and-retention.md`
-- `docs/adr/0005-telemetry-accuracy-semantics.md`
-- `docs/adr/0006-behavioral-baseline-and-factual-events.md`
-- `docs/adr/0007-software-inventory-and-local-vulnerability-repositories.md`
-- `docs/adr/0008-isolated-vulnerability-cache.md`
+- [`adr/0001-modular-local-first.md`](adr/0001-modular-local-first.md)
+- [`adr/0002-real-data-partial-results.md`](adr/0002-real-data-partial-results.md)
+- [`adr/0003-sqlite-and-secret-boundary.md`](adr/0003-sqlite-and-secret-boundary.md)
+- [`adr/0004-live-telemetry-and-retention.md`](adr/0004-live-telemetry-and-retention.md)
+- [`adr/0005-telemetry-accuracy-semantics.md`](adr/0005-telemetry-accuracy-semantics.md)
+- [`adr/0006-behavioral-baseline-and-factual-events.md`](adr/0006-behavioral-baseline-and-factual-events.md)
+- [`adr/0007-software-inventory-and-local-vulnerability-repositories.md`](adr/0007-software-inventory-and-local-vulnerability-repositories.md)
+- [`adr/0008-isolated-vulnerability-cache.md`](adr/0008-isolated-vulnerability-cache.md)

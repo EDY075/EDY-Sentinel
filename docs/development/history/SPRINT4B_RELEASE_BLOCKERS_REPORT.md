@@ -38,7 +38,7 @@ Detection/Score transaction every 15 seconds.
 
 ### Authenticode release infrastructure
 
-`CODE_SIGNING.md`, `scripts/build-release.mjs`, and `scripts/verify-authenticode.ps1` define the
+[`../../security/code-signing.md`](../../security/code-signing.md), `scripts/build-release.mjs`, and `scripts/verify-authenticode.ps1` define the
 production boundary. A public release job must inject a legitimate certificate from the Windows
 Certificate Store plus its provider timestamp URL, set
 `EDY_SENTINEL_REQUIRE_SIGNED_RELEASE=1`, and verify `Status=Valid`, signer and timestamp on the app
