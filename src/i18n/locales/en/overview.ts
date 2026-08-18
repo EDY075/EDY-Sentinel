@@ -9,6 +9,9 @@ export default {
     incomplete: 'System data incomplete',
     current: 'System snapshot current',
     updated: 'Updated {{time}}',
+    logicalProcessors_one: '{{formattedCount}} logical processor',
+    logicalProcessors_other: '{{formattedCount}} logical processors',
+    memoryInstalled: '{{value}} memory',
   },
   metrics: {
     processor: 'Processor',

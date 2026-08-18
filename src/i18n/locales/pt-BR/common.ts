@@ -29,4 +29,5 @@ export const common = {
     processes_one: '{{count}} processo observado',
     processes_other: '{{count}} processos observados',
   },
+  inspector: { label: 'Inspetor do Endpoint' },
 } as const

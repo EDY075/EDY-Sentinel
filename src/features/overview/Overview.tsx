@@ -1,4 +1,5 @@
 import { AlertTriangle, Box, Cpu, Gauge, HardDrive, MemoryStick, MonitorCog, Network, RefreshCw, Router, Server, Wifi } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Badge, EmptyState, Skeleton, StatusDot } from '../../components/ui/primitives'
 import type { DatabaseStatus, SystemOverview } from '../../types/system'
@@ -21,6 +22,7 @@ interface OverviewProps {
   onOpenEvents: () => void
   securityScore: SecurityScore | null
   onOpenScore: () => void
+  collectorStrip: ReactNode
 }
 
 function MetricCard({ icon, label, value, detail, progress }: { icon: React.ReactNode; label: string; value: string; detail: string; progress?: number }) {
@@ -46,7 +48,7 @@ function LoadingOverview() {
   )
 }
 
-export function Overview({ data, database, loading, error, onRefresh, baseline, onBaselineAction, onOpenEvents, securityScore, onOpenScore }: OverviewProps) {
+export function Overview({ data, database, loading, error, onRefresh, baseline, onBaselineAction, onOpenEvents, securityScore, onOpenScore, collectorStrip }: OverviewProps) {
   const { t, i18n } = useTranslation('overview')
   const locale = i18n.resolvedLanguage ?? i18n.language
   const number = new Intl.NumberFormat(locale)
@@ -71,17 +73,23 @@ export function Overview({ data, database, loading, error, onRefresh, baseline, 
 
   return (
     <div className="overview">
-      <section className="hero-card">
-        <div>
-          <div className="eyebrow"><StatusDot status={data.issues.length ? 'partial' : 'online'} /> {t('hero.eyebrow')}</div>
-          <h1>{localizedValue(data.host.hostname)}</h1>
-          <p>{t('hero.signedInAs', { os: localizedValue(data.operatingSystem.name), architecture: data.host.architecture, username: localizedValue(data.host.username) })}</p>
-        </div>
-        <div className="hero-card__meta">
-          <Badge tone={data.issues.length ? 'warning' : 'good'}>{data.issues.length ? t('hero.incomplete') : t('hero.current')}</Badge>
-          <span>{t('hero.updated', { time: new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(new Date(data.collectedAt)) })}</span>
-        </div>
-      </section>
+      <div className="overview-command-deck">
+        <section className="hero-card">
+          <div className="hero-card__identity">
+            <div className="eyebrow"><StatusDot status={data.issues.length ? 'partial' : 'online'} /> {t('hero.eyebrow')}</div>
+            <h1>{localizedValue(data.host.hostname)}</h1>
+            <p>{t('hero.signedInAs', { os: localizedValue(data.operatingSystem.name), architecture: data.host.architecture, username: localizedValue(data.host.username) })}</p>
+            <div className="hero-card__facts"><span>{data.operatingSystem.displayVersion || data.operatingSystem.edition || t('system.editionUnavailable')}</span><span>{t('hero.logicalProcessors', { count: data.cpu.logicalCores, formattedCount: number.format(data.cpu.logicalCores) })}</span><span>{t('hero.memoryInstalled', { value: formatBytes(data.memory.totalBytes, locale, t('system.unavailable')) })}</span></div>
+          </div>
+          <div className="hero-card__meta">
+            <Badge tone={data.issues.length ? 'warning' : 'good'}>{data.issues.length ? t('hero.incomplete') : t('hero.current')}</Badge>
+            <span>{t('hero.updated', { time: new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(new Date(data.collectedAt)) })}</span>
+          </div>
+        </section>
+        <SecurityScorePanel score={securityScore} baselineStatus={baseline?.status ?? 'not_initialized'} onOpen={onOpenScore} />
+      </div>
+
+      {collectorStrip}
 
       <div className="metrics-grid">
         <MetricCard icon={<Cpu size={19} />} label={t('metrics.processor')} value={localizedValue(data.cpu.model)} detail={t('metrics.physicalLogical', { physical: data.cpu.physicalCores == null ? '—' : number.format(data.cpu.physicalCores), logical: number.format(data.cpu.logicalCores) })} />
@@ -121,7 +129,7 @@ export function Overview({ data, database, loading, error, onRefresh, baseline, 
           </div>
         </section>
 
-        <div className="overview-side-stack"><SecurityScorePanel score={securityScore} baselineStatus={baseline?.status ?? 'not_initialized'} onOpen={onOpenScore} /><BaselinePanel baseline={baseline} database={database} onAction={onBaselineAction} onOpenEvents={onOpenEvents} /></div>
+        <div className="overview-side-stack"><BaselinePanel baseline={baseline} database={database} onAction={onBaselineAction} onOpenEvents={onOpenEvents} /></div>
       </div>
 
       {data.issues.length > 0 && <section className="collection-notice"><AlertTriangle size={17} /><div><strong>{t('collection.partial')}</strong>{data.issues.map((issue) => <p key={issue.component}>{t('collection.issue', { component: t(`collection.components.${issue.component}`, { defaultValue: issue.component }) })}</p>)}</div></section>}

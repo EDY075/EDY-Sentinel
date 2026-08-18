@@ -1,6 +1,7 @@
 export default {
+  productDescriptor: 'Windows endpoint intelligence',
   headings: {
-    overview: { eyebrow: 'Endpoint intelligence', title: 'Security overview', description: 'Review the current state of this Windows device.', topbar: 'Security overview' },
+    overview: { eyebrow: 'Local device posture', title: 'Windows Endpoint Intelligence', description: 'Understand this device, its software and local risk at a glance.', topbar: 'Device posture' },
     processes: { eyebrow: 'Live activity', title: 'Processes', description: 'Observe real Windows processes and their runtime footprint.', topbar: 'Process activity' },
     network: { eyebrow: 'Network telemetry', title: 'Active connections', description: 'Inspect current TCP and UDP endpoints correlated with processes.', topbar: 'Active connections' },
     services: { eyebrow: 'System telemetry', title: 'Windows services', description: 'Review service state and startup configuration without changing the system.', topbar: 'Windows services' },

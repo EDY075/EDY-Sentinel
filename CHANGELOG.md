@@ -6,6 +6,27 @@ All notable changes follow Keep a Changelog principles.
 
 No public release has been published.
 
+### Changed
+
+- Established a distinct Windows endpoint intelligence identity with a compact desktop shell,
+  device-first Overview hierarchy, less repetitive surfaces, and clearer separation from SOC/SIEM
+  and endpoint-protection visual patterns
+- Promoted Security Score to a recognizable technical 86/100 posture plate with segmented scale,
+  preserved Detections/Vulnerabilities/Coverage inputs, and no percentage representation
+- Refined Inventory, operational tables, row selection, CVE presentation, and all side drawers
+  under a shared bilingual Endpoint Inspector visual language
+- Rebalanced Sentinel Blue, Cyber Green, Terminal, and Spectrum while preserving semantic tokens,
+  contrast, keyboard focus, reduced motion, pt-BR, and English
+
+### Validation
+
+- Real Tauri release QA covered Overview, Processes, Network, Services, Inventory, CVE Detail,
+  Detections, Security Events, six enabled v1 rules, Security Score, and Settings in all four themes
+- Responsive WebView validation passed at 1920x1080, 1600x900, 1440x900, 1366x768, and 1280x720
+  without detected horizontal overflow or control/heading clipping; screenshots remain outside Git
+- Regression remained score 86 = 100 − 0 − 14, formula v2, 0 active Detections, 31 Confirmed,
+  1 Possible at impact zero, 1 Confirmed KEV, Ready baseline, and healthy collectors
+
 ## [1.0.0] — 2026-08-17 (final local preparation)
 
 ### Added

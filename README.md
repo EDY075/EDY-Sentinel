@@ -1,8 +1,10 @@
 # EDY Sentinel
 
-EDY Sentinel is a local-first Windows security observability desktop application. It combines
-native endpoint telemetry, a behavioral baseline, factual security events, six explainable
-detection rules, conservative software-to-CVE matching, and an auditable Security Score.
+EDY Sentinel is a local-first Windows endpoint intelligence desktop application. Its compact
+desktop shell centers the observed device, local posture, software identity, processes,
+connections, vulnerabilities, and explainable risk. It combines native endpoint telemetry, a
+behavioral baseline, factual security events, six explainable detection rules, conservative
+software-to-CVE matching, and an auditable Security Score.
 
 Version `1.0.0` is the final local release tree prepared for human review. Its EXE, MSI, and NSIS
 outputs remain unsigned local artifacts and are not approved for public distribution until a
@@ -26,17 +28,25 @@ unresolved.
 
 ## Core views
 
-- **Overview:** current collector health, system facts, baseline state, and Security Score.
+- **Overview:** device identity and state first, followed by the recognizable 0–100 Security Score,
+  collector health, system facts, vulnerability posture, and baseline state.
 - **Processes, Network, and Services:** live read-only endpoint activity with factual detail.
-- **Inventory:** installed software, normalized product identity, CVE evidence, and KEV context.
+- **Inventory:** a dense endpoint-inspection table for installed software, normalized Product
+  Identity, vulnerability state, CVE evidence, and KEV context.
 - **Security analysis:** factual events, explainable Detections, and the six-rule registry.
 - **Settings:** interface language, installed version/release channel, and provider status.
+
+Side drawers use a shared **Endpoint Inspector** language for identity, runtime, evidence, network,
+vulnerability, and technical metadata. Sentinel Blue is the primary neutral-blue desktop theme;
+Cyber Green uses green as a functional accent, Terminal is restrained rather than terminal-like,
+and Spectrum provides controlled violet/blue depth without changing semantic state colors.
 
 ## Screenshots and visual evidence
 
 Real desktop screenshots are generated outside Git because they may contain endpoint metadata. The
-current evidence inventory and capture limitations are recorded in `SPRINT5B_FINAL_REPORT.md` and
-`RELEASE_CHECKLIST.md`.
+Sprint 5C visual pass validates the real Tauri WebView at 1920x1080, 1600x900, 1440x900, 1366x768,
+and 1280x720; its local screenshots remain outside the repository. Release/publication status is
+tracked separately in `SPRINT5B_FINAL_REPORT.md` and `RELEASE_CHECKLIST.md`.
 
 ## Installation status
 

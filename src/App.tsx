@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Activity, Bell, Boxes, ChevronLeft, CircleHelp, Command, FileText, Gauge, LayoutDashboard, Menu, Network, Palette, Pause, Play, RefreshCw, Search, Settings, Shield, ShieldAlert, SlidersHorizontal, Wifi } from 'lucide-react'
+import { Activity, Bell, Boxes, ChevronLeft, CircleHelp, Command, FileText, Gauge, LayoutDashboard, Menu, Network, Palette, Pause, Play, RefreshCw, ScanLine, Search, Settings, Shield, ShieldAlert, SlidersHorizontal, Wifi } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import './App.css'
 import { Dialog, IconButton, Skeleton, Tooltip } from './components/ui/primitives'
@@ -143,7 +143,7 @@ function App() {
   return (
     <div className="app-shell" data-sidebar={collapsed ? 'compact' : 'expanded'} data-mobile-open={mobileOpen || undefined}>
       <aside className="sidebar">
-        <div className="brand"><span className="brand-mark"><Shield size={21} strokeWidth={1.7} /></span><span className="brand-copy"><strong>EDY</strong><small>SENTINEL</small></span></div>
+        <div className="brand"><span className="brand-mark"><ScanLine size={21} strokeWidth={1.7} /></span><span className="brand-copy"><span><strong>EDY</strong><small>SENTINEL</small></span><em>{t('shell:productDescriptor')}</em></span></div>
         <nav aria-label={t('navigation:primaryLabel')}><span className="nav-label">{t('navigation:workspace')}</span>{nav.map((item) => <Tooltip key={item.label} label={item.label}><button type="button" aria-label={item.label} className="nav-item" data-active={item.page === page || undefined} disabled={!item.page} title={!item.page ? t('navigation:planned') : undefined} onClick={() => item.page && openPage(item.page)}><item.icon size={18} /><span>{item.label}</span>{item.page === page && <i />}</button></Tooltip>)}</nav>
         <div className="sidebar-spacer" />
         <div className="sidebar-status"><span className="pulse" data-paused={!live || undefined} /><div><strong>{t(live ? 'shell:sidebar.live' : 'shell:sidebar.paused')}</strong><small>{snapshot ? t('shell:sidebar.processesObserved', { count: snapshot.processes.length }) : t('shell:sidebar.starting')}</small></div></div>
@@ -165,10 +165,10 @@ function App() {
         </header>
 
         <main className="content">
-          <div className="page-heading"><div><p>{heading.eyebrow}</p><h2>{page === 'overview' ? t('shell:welcome', { username: overview?.host.username ?? t('shell:operator') }) : heading.title}</h2><span>{heading.description}</span></div>{page !== 'settings' && page !== 'inventory' && <button type="button" className="button button--primary" onClick={runRefresh} disabled={refreshing}><RefreshCw size={16} className={refreshing ? 'spin' : ''} /> {t('shell:refresh')}</button>}</div>
+          <div className="page-heading" data-page={page}><div><p>{heading.eyebrow}</p><h2>{heading.title}</h2><span>{heading.description}</span></div>{page !== 'settings' && page !== 'inventory' && <button type="button" className="button button--primary" onClick={runRefresh} disabled={refreshing}><RefreshCw size={16} className={refreshing ? 'spin' : ''} /> {t('shell:refresh')}</button>}</div>
           <div className="operational-layout">
-            {page !== 'settings' && page !== 'inventory' && <CollectorStrip health={health} live={live} refreshing={refreshing} onLiveChange={setLiveWithToast} onRefresh={runRefresh} />}
-            {page === 'overview' && <Overview data={overview} database={database} loading={loading} error={error} onRefresh={refresh} baseline={baseline} onBaselineAction={setBaselineAction} onOpenEvents={() => openSecurity('events')} securityScore={securityScore} onOpenScore={() => setScoreOpen(true)} />}
+            {page !== 'settings' && page !== 'inventory' && page !== 'overview' && <CollectorStrip health={health} live={live} refreshing={refreshing} onLiveChange={setLiveWithToast} onRefresh={runRefresh} />}
+            {page === 'overview' && <Overview data={overview} database={database} loading={loading} error={error} onRefresh={refresh} baseline={baseline} onBaselineAction={setBaselineAction} onOpenEvents={() => openSecurity('events')} securityScore={securityScore} onOpenScore={() => setScoreOpen(true)} collectorStrip={<CollectorStrip health={health} live={live} refreshing={refreshing} onLiveChange={setLiveWithToast} onRefresh={runRefresh} />} />}
             {page !== 'overview' && page !== 'events' && page !== 'settings' && page !== 'inventory' && loading && !snapshot && <OperationalLoading label={t('shell:loading')} />}
             {page !== 'overview' && page !== 'events' && page !== 'settings' && page !== 'inventory' && !loading && !snapshot && <div className="error-state"><span><Activity size={20} /></span><div><strong>{t('shell:telemetryUnavailable.title')}</strong><p>{t(error ? 'errors:telemetryUnavailable' : 'shell:telemetryUnavailable.description')}</p></div><button type="button" className="button" onClick={runRefresh}>{t('shell:telemetryUnavailable.retry')}</button></div>}
             {page === 'processes' && snapshot && <ProcessesView processes={snapshot.processes} connections={snapshot.connections} currentUser={overview?.host.username} />}

@@ -88,7 +88,7 @@ export function Drawer({ open, title, children, onClose, wide = false }: { open:
   if (!open) return null
   return (
     <aside ref={drawerRef} tabIndex={-1} className={`drawer ${wide ? 'drawer--wide' : ''}`} role="dialog" aria-modal="false" aria-labelledby={titleId}>
-      <header><h2 id={titleId}>{title}</h2><IconButton aria-label={t('accessibility.closeDrawer')} onClick={onClose}><X size={18} /></IconButton></header>
+      <header><div><span className="drawer-kicker">{t('inspector.label')}</span><h2 id={titleId}>{title}</h2></div><IconButton aria-label={t('accessibility.closeDrawer')} onClick={onClose}><X size={18} /></IconButton></header>
       {children}
     </aside>
   )

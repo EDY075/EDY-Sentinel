@@ -1,6 +1,7 @@
 export default {
+  productDescriptor: 'Inteligência do endpoint Windows',
   headings: {
-    overview: { eyebrow: 'Inteligência do endpoint', title: 'Visão geral de segurança', description: 'Revise o estado atual deste dispositivo Windows.', topbar: 'Visão geral de segurança' },
+    overview: { eyebrow: 'Postura local do dispositivo', title: 'Inteligência do Endpoint Windows', description: 'Entenda este dispositivo, seus softwares e o risco local rapidamente.', topbar: 'Postura do dispositivo' },
     processes: { eyebrow: 'Atividade em tempo real', title: 'Processos', description: 'Observe os processos reais do Windows e o uso de recursos em tempo de execução.', topbar: 'Atividade dos processos' },
     network: { eyebrow: 'Telemetria de rede', title: 'Conexões Ativas', description: 'Inspecione endpoints TCP e UDP atuais correlacionados a processos.', topbar: 'Conexões Ativas' },
     services: { eyebrow: 'Telemetria do sistema', title: 'Serviços do Windows', description: 'Revise o estado e a configuração de inicialização dos serviços sem alterar o sistema.', topbar: 'Serviços do Windows' },
