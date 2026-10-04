@@ -30,6 +30,10 @@ an auditable Security Score into one focused desktop workspace.
 > for most users. The current v1.0.0 binaries are an **UNSIGNED BUILD**; Windows may display an
 > unknown-publisher warning. Verify the published SHA-256 checksums before running a download.
 
+## Video presentation
+
+https://github.com/user-attachments/assets/80639375-273e-4a1f-8b6e-80da6e33acef
+
 ## Quick install
 
 1. Download the recommended [Setup EXE](https://github.com/EDY075/EDY-Sentinel/releases/download/v1.0.0/EDY-Sentinel-1.0.0-Setup-x64.exe).
